@@ -1,0 +1,21 @@
+.root {
+  width: 100%;
+  height: 100%;
+  display:flex;
+  flex-flow: column nowrap;
+}
+
+.disabled {
+  pointer-events: none;
+}
+
+.help {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+}
+
+.mat-flat-button,
+.mat-raised-button {
+  border-radius: 0;
+}

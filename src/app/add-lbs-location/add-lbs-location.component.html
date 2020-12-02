@@ -1,0 +1,20 @@
+<h1 matDialogTitle>添加LBS点位的位置</h1>
+
+<mat-dialog-content>
+  <mat-label>当前的lac是{{data.lac}},当前的ci是{{data.ci}}</mat-label>
+  <div style="display: flex; flex-flow: row nowrap;padding-top: 15px;">
+    <mat-form-field>
+      <mat-label>经度</mat-label>
+      <input [(ngModel)]="data.lng" matInput>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>纬度</mat-label>
+      <input [(ngModel)]="data.lat" matInput>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-button matDialogClose (click)=onCancel()>取消</button>
+  <button mat-button (click)=onSubmit() matDialogClose>确定</button>
+</mat-dialog-actions>

@@ -1,0 +1,10 @@
+.location{
+    background-image: url("../../assets/location.svg");
+    width: 40px;
+    height: 40px;
+    background-size: 40px 40px;
+    cursor: pointer;
+}
+.location:hover{
+    background-image: url("../../assets/location_over.svg");
+}

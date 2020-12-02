@@ -1,0 +1,6 @@
+{
+    "/huadan": {
+        "target": "http://114.115.201.238",
+        "secure": false
+    }
+}

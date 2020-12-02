@@ -1,0 +1,14 @@
+<h1 matDialogTitle>{{title}}</h1>
+
+<mat-dialog-content style="height: 100px;">
+  <mat-form-field style="width: 350px;">
+    <mat-label>{{lable}}</mat-label>
+    <input matInput [(ngModel)]='value' type="{{type}}">
+  </mat-form-field>
+  <br/>
+</mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-button matDialogClose>取消</button>
+  <button mat-button (click) = onSubmit() matDialogClose>确定</button>
+</mat-dialog-actions>
