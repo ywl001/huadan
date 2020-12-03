@@ -4,7 +4,9 @@ import * as EventBus from 'eventbusjs';
 import { EventType } from '../models/event-type';
 import { Model } from '../models/Model';
 import { DbService } from '../services/db.service';
-import * as toastr from 'toastr'
+import * as toastr from 'toastr';
+import * as gcoord from 'gcoord'
+import { SqlService } from '../services/sql.service';
 
 @Component({
   selector: 'app-add-lbs-location',
@@ -18,7 +20,8 @@ export class AddLbsLocationComponent implements OnInit {
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: any,
     public dialogRef: MatDialogRef<AddLbsLocationComponent>,
-    private dbService: DbService
+    private dbService: DbService,
+    private sqlService: SqlService
   ) { }
 
   ngOnInit() {
@@ -63,9 +66,19 @@ export class AddLbsLocationComponent implements OnInit {
     )
 
     //修改远程
+    var result = gcoord.transform(
+      [this.data.lng, this.data.lat],    // 经纬度坐标
+      gcoord.BD09,               // 当前坐标系
+      gcoord.WGS84                 // 目标坐标系
+    );
+    this.sqlService.insertLbsLocation(Model.CURRENT_MNC, this.data.lac, this.data.ci, this.data.lat, this.data.lng, result[1], result[0]).subscribe(
+      res=>{
+        console.log(res)
+      }
+    )
   }
 
   onCancel() {
-    EventBus.dispatch(EventType.TOGGLE_MIDDLE,1)
+    EventBus.dispatch(EventType.TOGGLE_MIDDLE, 1)
   }
 }

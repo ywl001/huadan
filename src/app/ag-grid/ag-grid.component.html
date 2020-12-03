@@ -10,9 +10,12 @@
         suppressColumnVirtualisation
         animateRows
         [frameworkComponents]="frameworkComponents"
+        [isExternalFilterPresent]="isExternalFilterPresent"
+        [doesExternalFilterPass]="doesExternalFilterPass"
         (gridReady)="onGridReady($event)"
         (rowDataChanged)="onRowDataChange($event)"
         (modelUpdated)="onDataChange($event)"
+        (cellMouseDown) = "onCellMouseDown($event)"
         (cellClicked)="onClick($event)"
         (cellDoubleClicked)="onDoubleClick($event)"
         (cellValueChanged)="onCellValueChange($event)"

@@ -5,6 +5,8 @@ import { Component, OnInit, ChangeDetectorRef, ElementRef, ViewChild } from '@an
 
 import * as toastr from 'toastr'
 import * as EventBus from 'eventbusjs'
+import * as moment from 'moment';
+
 import { Model } from '../models/Model';
 import { SqlService } from '../services/sql.service';
 import { Router, NavigationEnd } from '@angular/router';
@@ -403,21 +405,21 @@ export class MenuComponent implements OnInit {
     if (this.url == '/help') {
       this.router.navigateByUrl('/')
     }
-
     //如果点击的是当前表，不做反应
     if (!item || item == Model.currentTable) {
       return;
     }
-
     //禁用菜单，直到得到数据
     this.isMenuDisable = true;
-    //记录当前操作的话单
+    //记录当前操作的话单和运营商
     Model.currentTable = item;
+    let yysMap = {'移动':0,'联通':1,'电信':11}
+    let yys = item.split('_')[0];
+    Model.CURRENT_MNC = yysMap[yys];
 
     this.dbService.getRecords(item)
       .done(res => {
         this.setAllRecords(res);
-
         console.log('ok');
         //获取数据后启用菜单
         this.isMenuDisable = false;
@@ -469,7 +471,6 @@ export class MenuComponent implements OnInit {
       .done(
         res => {
           this.getTables();
-          this.dbService.delTable(Model.LOCATION_TABLE_PRE + tableName);
           this.removeFilters();
           this.dispatchClearEvent();
         }
@@ -503,21 +504,17 @@ export class MenuComponent implements OnInit {
   }
 
   //夜间通话记录
-  onNightRecord(tableName) {
+  onNightRecord() {
     Model.isShowBtnBack = false;
     let nightRecords = [];
     let records = Model.allRecords;
-    for (let i = 0; i < records.length; i++) {
-      let startTime = records[i][Model.START_TIME];
-      try {
-        const hour = startTime.split(' ')[1].substr(0, 2);
-        if (parseInt(hour) <= 5 || parseInt(hour) >= 22) {
-          nightRecords.push(records[i]);
-        }
-      } catch (error) {
-        console.log(error.message);
+    records.forEach(item => {
+      const startTime = moment(item[Model.START_TIME]);
+      const hour = startTime.get('hour');
+      if (hour <= 5 || hour >= 22) {
+        nightRecords.push(item)
       }
-    }
+    })
     if (nightRecords.length > 0)
       EventBus.dispatch(EventType.SHOW_RECORDS, nightRecords);
     else

@@ -1,6 +1,6 @@
-import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { AgGridNg2 } from 'ag-grid-angular';
-import { CellClickedEvent, CellEvent, CellValueChangedEvent, ColumnApi, GridApi, RowNode } from 'ag-grid-community';
+import { CellEvent, CellValueChangedEvent, ColumnApi, GridApi, RowNode } from 'ag-grid-community';
 import * as EventBus from 'eventbusjs';
 import * as toastr from 'toastr';
 import * as XLSX from 'xlsx';
@@ -14,7 +14,6 @@ import { OtherNumberFilterComponent } from '../other-number-filter/other-number-
 import { Station } from '../models/station';
 import { Record } from '../models/record';
 import { MatDialog } from '@angular/material/dialog';
-import { AddLbsLocationComponent } from '../add-lbs-location/add-lbs-location.component';
 
 declare var alertify;
 @Component({
@@ -29,7 +28,6 @@ export class AgGridComponent {
   private RECORD_COUNT_STATE = 2
   private COMMON_CONTACTS_STATE = 3;
   private RECORDS_COMMON_CONTACTS_STATE = 4;
-
 
   //表格显示状态
   private state;
@@ -46,8 +44,6 @@ export class AgGridComponent {
   /**是否显示存储显示内容的按钮 class绑定*/
   isShowBtnSave;
 
-  searchValue;
-
   private columnApi: ColumnApi;
   private gridApi: GridApi;
 
@@ -56,11 +52,15 @@ export class AgGridComponent {
 
   //** 单击，双击的判断 */
   private isClick;
+  private isPress;
+  private isDoubleClick;
 
   /** 作为编辑后修改相同网格后，防止递归的一种标志 */
   private isEdit;
 
   frameworkComponents;
+
+  private history:any[] = [];
 
   constructor(
     private dbService: DbService,
@@ -68,7 +68,7 @@ export class AgGridComponent {
     public dialog: MatDialog,
     private sqlService: SqlService) {
 
-    this.frameworkComponents = { otherNumberFilter: OtherNumberFilterComponent }
+    this.frameworkComponents = { otherNumberFilter: OtherNumberFilterComponent };
 
     //显示统计表，从menu
     EventBus.addEventListener(EventType.SHOW_RECORD_COUNT, e => { this.showRecordsCount(e.target) });
@@ -113,7 +113,6 @@ export class AgGridComponent {
 
   /** 显示通话记录 */
   private showRecords(data) {
-    console.log(data)
     this.state = this.RECORDS_STATE;
     this.setBtnVisible(Model.isShowBtnBack, true, true)
     this.setGridData(data);
@@ -142,7 +141,6 @@ export class AgGridComponent {
   }
 
   private showSearchRecords(res) {
-    console.log(res)
     this.setBtnVisible(false, false, false)
     this.state = this.RECORDS_COMMON_CONTACTS_STATE;
     this.setRowStyle("record");
@@ -166,11 +164,11 @@ export class AgGridComponent {
     } else if (type == 'record') {
       this.agGrid.gridOptions.getRowStyle = (params) => {
         if (params.data[Model.TABLE_NAME]) {
-          if (params.data.lat == 0 || params.data.lng == 0) {
-            return { background: '#Eeeeee', color: '#aaaaaa' }
-          }
-          let color = 'white';
+          let color, opacity = 1;
           const tables = Model.tables;
+          if (params.data.lat == 0 || params.data.lng == 0) {
+            opacity = 0.5
+          }
           for (let i = 0; i < tables.length; i++) {
             if (params.data[Model.TABLE_NAME] == tables[i].name) {
               if (i % 4 == 0) color = 'white';
@@ -178,12 +176,12 @@ export class AgGridComponent {
               else if (i % 4 == 2) color = 'lightgreen';
               else color = 'lightskyblue';
 
-              return { backgroundColor: color };
+              return { backgroundColor: color, opacity: opacity };
             }
           }
         }
-        if (params.data.lat == 0 || params.data.lng == 0) {
-          return { background: '#Eeeeee', color: '#aaaaaa' }
+        else if (params.data.lat == 0 || params.data.lng == 0) {
+          return { fontStyle: 'italic', opacity: 0.6 }
         }
       }
     }
@@ -191,12 +189,12 @@ export class AgGridComponent {
 
   /* 设置表格数据 */
   private setGridData(data) {
+    console.log('set grid data')
     //如果数据没有改变，清楚过滤器
     if (!data || data == this.gridData) {
       this.onClearFilter();
       return;
     }
-    console.log(this.state)
     //设置表格表头
     let colDefs = this.getColDefs();
     this.gridApi.setColumnDefs(colDefs);
@@ -254,7 +252,8 @@ export class AgGridComponent {
   }
 
   onRowDataChange(e) {
-    console.log('on row data change')
+    console.log('on row data change');
+
     if (this.gridData.length > 0) {
       this.autoSizeAll();
     }
@@ -274,7 +273,48 @@ export class AgGridComponent {
     this.agGrid.gridOptions.api.redrawRows()
   }
 
+  isExternalFilterPresent(){
+    console.log('isFilter:',isFilter);
+    return isFilter;
+  }
+
+  doesExternalFilterPass(node:RowNode){
+    console.log(filterData);
+    if(filterData) isFilter = false;
+    if(filterData.field == Model.OTHER_NUMBER){
+      return node.data[Model.OTHER_NUMBER] === filterData.value
+    }else if(filterData.field == Model.START_TIME){
+      const startTime = moment(filterData.value);
+      return moment(node.data[Model.START_TIME]).dayOfYear() === startTime.dayOfYear()
+    }
+  }
+
   ////////////////////////////////////////表格事件/////////////////////////////////////////
+
+  onCellMouseDown(e: CellEvent) {
+    this.isClick = false;
+    this.isPress = false;
+    this.isDoubleClick = false;
+    setTimeout(() => {
+      if (!this.isClick && !this.isDoubleClick) {
+        this.isPress = true;
+        console.log('press');
+        this.onLongPress(e)
+        console.log(e)
+      }
+    }, 1000);
+  }
+
+  private onLongPress(e:CellEvent){
+    const field = e.colDef.field;
+    if(field === Model.OTHER_NUMBER || field === Model.START_TIME){
+      isFilter = true;
+      filterData = {field:field,value:e.data[field]};
+      this.gridApi.onFilterChanged();
+    }else{
+      isFilter = false;
+    }
+  }
 
   //click
   onClick(e: CellEvent) {
@@ -286,7 +326,8 @@ export class AgGridComponent {
     }
 
     setTimeout(() => {
-      if (this.isClick) {
+      if (this.isClick && !this.isPress) {
+        console.log('click')
         if (headerName == Model.OTHER_NUMBER_CN || headerName == Model.CI_CN || headerName == Model.LAC_CN) {
           EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, true);
         }
@@ -296,7 +337,7 @@ export class AgGridComponent {
     }, 500);
   }
 
-  //单击表中内容，显示基站位置或显示号码通话记录（统计表）
+  //单击表中内容，显示基站位置或显示号码通话记录
   private onClickCell(e: CellEvent) {
     // EventBus.dispatch(EventType.IS_TOGGLE_MIDDLE, true);
     if (this.isEdit) {
@@ -347,12 +388,17 @@ export class AgGridComponent {
   onDoubleClick(e: CellEvent) {
     //避免双击造成触发单击事件
     this.isClick = false;
+    this.isDoubleClick = true;
     const headerName = e.colDef.headerName;
     if (headerName === Model.LAC_CN || headerName == Model.CI_CN) {
       console.log('双击了位置列');
       const data = e.data;
       let isHasLocation = (data.lat > 0 && data.lng > 0) ? true : false;
-      const alertInfo = isHasLocation ? `该基站已经有位置信息了，需要重新添加吗？` : "如果要添加该基站的位置，请点击确定后，然后在地图上点击基站的位置，否则请点击取消"
+      if (isHasLocation) {
+        toastr.info('该基站已经有位置信息了');
+        return
+      }
+      const alertInfo = "如果要添加该基站的位置，请点击确定后，然后在地图上点击基站的位置，否则请点击取消"
       alertify.set({
         labels: { ok: "确定", cancel: "取消" }
       });
@@ -369,15 +415,15 @@ export class AgGridComponent {
           EventBus.dispatch(EventType.SET_CURSOR, Model.CURSOR_CROSSHAIR)
         }
       });
-    } else if (headerName == Model.OTHER_NUMBER_CN) {
+    }
+    //当双击对端号码时，关闭页面的缩放
+    else if (headerName == Model.OTHER_NUMBER_CN) {
       console.log('双击了对端号码列');
       //是否手动修改的标志
       this.isEdit = true;
       EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, true);
     }
-
     console.log('db click')
-    //当双击对端号码时，关闭页面的缩放
   }
 
   //当修改单元格内容后
@@ -517,6 +563,7 @@ export class AgGridComponent {
 
   //清除表格过滤
   onClearFilter() {
+    isFilter = false;
     this.gridApi.setFilterModel(null);
     this.gridApi.onFilterChanged();
   }
@@ -557,3 +604,7 @@ export class AgGridComponent {
     XLSX.writeFile(wb, fileName + ".xlsx");
   }
 }
+
+import * as moment from 'moment'
+let isFilter,filterData;
+

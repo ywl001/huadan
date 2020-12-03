@@ -90,11 +90,7 @@ export class Model {
     /////////////////////
     //ag-grid表状态1、通话详单状态 2、对端号码统计状态 3、共同联系人状态
 
-    //地址表前缀
-    public static LOCATION_TABLE_PRE = 'location_';
     //话单表前缀
-    public static TABLE_PRE = '话单_'
-
     public static width: number;
     public static height: number;
 
@@ -102,6 +98,7 @@ export class Model {
      * 当前表名称
     */
     public static currentTable: string;
+    public static CURRENT_MNC;
 
     /**
      * 基站数量的统计信息,当点击话单的时候获取{lac,ci,count}
@@ -109,11 +106,13 @@ export class Model {
     public static stationsCountList: any[];
 
     /**
-     * 当前话单所有通话记录,包含了经纬度信息,当点击话单的时候获取
+     * 当前话单所有通话记录
      */
     public static allRecords: any[];
 
-
+    /**
+     * 当前话单记录的map
+     */
     public static allRecordsMap: Map<number, any>;
 
     /**
@@ -140,7 +139,7 @@ export class Model {
     public static ContactsMap: Map<string, string>;
 
 
-    public static sql = '/huadan/sql.php'
+    public static sqlUrl = '/huadan/sql.php'
 
     /**号码历史记录 */
     public static recordHistory: Map<number, any>;
