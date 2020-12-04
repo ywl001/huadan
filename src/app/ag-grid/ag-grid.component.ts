@@ -24,19 +24,29 @@ declare var alertify;
 })
 export class AgGridComponent {
 
-  private RECORDS_STATE = 1;
-  private RECORD_COUNT_STATE = 2
-  private COMMON_CONTACTS_STATE = 3;
-  private RECORDS_COMMON_CONTACTS_STATE = 4;
+  private RECORDS = 1;
+  private RECORD_COUNT = 2
+  private COMMON_CONTACTS = 3;
+  private RECORDS_COMMON_CONTACTS = 4;
+
 
   //表格显示状态
-  private state;
+  private _state;
 
   @ViewChild('agGrid')
   agGrid: AgGridNg2;
 
   /**是否显示返回按钮，class绑定*/
-  isShowBtnBack: boolean;
+  public get isShowBtnBack(): string {
+    if (this.historys.length > 2 && this.historyIndex > 0) return 'block'
+    return 'none'
+  }
+
+  public get isShowBtnForward(): string {
+    if (this.historys.length - this.historyIndex > 1) return 'block';
+    return 'none'
+  }
+
 
   /**是否显示显示基站位置按钮，class绑定*/
   isShowBtnLocation
@@ -60,7 +70,11 @@ export class AgGridComponent {
 
   frameworkComponents;
 
-  private history:any[] = [];
+  private historys: any[] = [];
+  private historyIndex = 0;
+  private isHistory;
+
+  private currentColDefs;
 
   constructor(
     private dbService: DbService,
@@ -71,13 +85,13 @@ export class AgGridComponent {
     this.frameworkComponents = { otherNumberFilter: OtherNumberFilterComponent };
 
     //显示统计表，从menu
-    EventBus.addEventListener(EventType.SHOW_RECORD_COUNT, e => { this.showRecordsCount(e.target) });
+    EventBus.addEventListener(EventType.SHOW_RECORD_COUNT, e => { this.showData(e.target, this.RECORD_COUNT) });
     //显示通话记录，从menu,map
-    EventBus.addEventListener(EventType.SHOW_RECORDS, e => { this.showRecords(e.target) });
-    EventBus.addEventListener(EventType.SHOW_COMMON_CONTACTS, e => { this.showCommonContacts(e.target) });
+    EventBus.addEventListener(EventType.SHOW_RECORDS, e => { this.showData(e.target, this.RECORDS) });
+    EventBus.addEventListener(EventType.SHOW_COMMON_CONTACTS, e => { this.showData(e.target, this.COMMON_CONTACTS) });
     EventBus.addEventListener(EventType.CLEAR_GRID_DATA, e => { this.gridData = []; });
     EventBus.addEventListener(EventType.SHOW_STATIONS_RECORDS, e => { this.showStationsRecordes(e.target); });
-    EventBus.addEventListener(EventType.SHOW_SEARCH_RECORDS, e => { this.showSearchRecords(e.target); });
+    EventBus.addEventListener(EventType.SHOW_SEARCH_RECORDS, e => { this.showData(e.target, this.RECORDS_COMMON_CONTACTS); });
   }
 
   //ready 事件监听，主要获取gridapi，和columnapi
@@ -89,79 +103,65 @@ export class AgGridComponent {
 
   ////////////////////////////////////////数据显示////////////////////////////////////////////
 
-  /** 显示号码统计信息*/
-  private showRecordsCount(data) {
-    //隐藏所有按钮
-    this.setBtnVisible();
-    //设置显示状态
-    this.state = this.RECORD_COUNT_STATE;
-    //设置行风格
-    this.setRowStyle("none");
-    //显示数据
-    this.setGridData(data);
-    EventBus.dispatch(EventType.TOGGLE_MIDDLE, 350);
+  public get state() {
+    return this._state;
+  }
+  public set state(value) {
+    this._state = value;
+    this.isShowBtnSave = this.isShowBtnLocation = value == this.RECORDS
+    this.getRowStyle(value);
+    this.getColDefs(value)
+    EventBus.dispatch(EventType.TOGGLE_MIDDLE, this.getGridWidth(value));
   }
 
-  /** 显示共同联系人 */
-  private showCommonContacts(data) {
-    this.setBtnVisible()
-    this.state = this.COMMON_CONTACTS_STATE;
-    this.setRowStyle("none");
-    this.setGridData(data);
-    EventBus.dispatch(EventType.TOGGLE_MIDDLE, 450);
+  private showData(data, state) {
+    this.state = state;
+    if (!data || data == this.gridData) {
+      this.onClearFilter();
+      return;
+    }
+    this.gridApi.setColumnDefs(this.currentColDefs);
+    this.addContactsInfo(data)
+    this.gridData = data;
   }
 
-  /** 显示通话记录 */
-  private showRecords(data) {
-    this.state = this.RECORDS_STATE;
-    this.setBtnVisible(Model.isShowBtnBack, true, true)
-    this.setGridData(data);
-    this.setRowStyle("record");
-    EventBus.dispatch(EventType.TOGGLE_MIDDLE, 1);
+  private setHistoryData(data, state) {
+    console.log(this.historys, this.historyIndex)
+    if (!state || !data || data.length == 0) return;
+    let historyData = {
+      state: state,
+      data: data
+    }
+    this.historys.push(historyData)
+    this.historyIndex = this.historys.length - 1;
   }
 
   /**通过基站显示记录 */
   private showStationsRecordes(ids) {
     let recordMap = Model.allRecordsMap;
-    let records = [];
+    let data = [];
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i];
       let record = recordMap.get(id);
-      records.push(record);
+      data.push(record);
     }
-    this.setGridData(records);
+    this.showData(data, this.RECORDS);
   }
 
-  /**显示共同联系人的通话记录 */
-  private showCommonContactsRecords(res) {
-    this.setBtnVisible(true, false, false)
-    this.state = this.RECORDS_COMMON_CONTACTS_STATE;
-    this.setRowStyle("record");
-    this.setGridData(res);
+  private getGridWidth(state) {
+    if (state == this.RECORDS) return 1;
+    else if (state == this.COMMON_CONTACTS) return 450;
+    else if (state == this.RECORDS_COMMON_CONTACTS) return 650;
+    else if (state == this.RECORD_COUNT) return 350;
   }
 
-  private showSearchRecords(res) {
-    this.setBtnVisible(false, false, false)
-    this.state = this.RECORDS_COMMON_CONTACTS_STATE;
-    this.setRowStyle("record");
-    this.setGridData(res);
-    EventBus.dispatch(EventType.TOGGLE_MIDDLE, 650);
-  }
-
-  /** 设置几个按钮是否显示 1、返回按钮 2、基站按钮 3、过滤按钮*/
-  private setBtnVisible(isShowBtnBack = false, isShowBtnLocation = false, isShowBtnSave = false) {
-    this.isShowBtnBack = isShowBtnBack;
-    this.isShowBtnLocation = isShowBtnLocation;
-    this.isShowBtnSave = isShowBtnSave;
-  }
-
-  /**设置行风格， none\record*/
-  private setRowStyle(type) {
-    if (type == 'none') {
+  /**设置行风格*/
+  private getRowStyle(state) {
+    if (state == this.RECORD_COUNT) {
       this.agGrid.gridOptions.getRowStyle = (params) => {
         return { background: null, color: null }
       };
-    } else if (type == 'record') {
+    } else {
       this.agGrid.gridOptions.getRowStyle = (params) => {
         if (params.data[Model.TABLE_NAME]) {
           let color, opacity = 1;
@@ -187,24 +187,8 @@ export class AgGridComponent {
     }
   }
 
-  /* 设置表格数据 */
-  private setGridData(data) {
-    console.log('set grid data')
-    //如果数据没有改变，清楚过滤器
-    if (!data || data == this.gridData) {
-      this.onClearFilter();
-      return;
-    }
-    //设置表格表头
-    let colDefs = this.getColDefs();
-    this.gridApi.setColumnDefs(colDefs);
-
-    this.addContactsInfo(data)
-    this.gridData = data;
-  }
-
   /**根据状态获取列定义 */
-  private getColDefs() {
+  private getColDefs(state) {
     let colDefs: any[] = [];
     let col_otherNumber = {
       headerName: Model.OTHER_NUMBER_CN, field: Model.OTHER_NUMBER, colId: Model.OTHER_NUMBER, editable: true,
@@ -230,17 +214,17 @@ export class AgGridComponent {
     colDefs.push(col_otherNumber);
     let cols;
 
-    if (this.state == this.RECORDS_STATE) {
+    if (state == this.RECORDS) {
       cols = [col_startTime, col_callType, col_duration, col_lac, col_ci]
-    } else if (this.state == this.RECORD_COUNT_STATE) {
+    } else if (state == this.RECORD_COUNT) {
       cols = [col_countCall, col_totalTime]
-    } else if (this.state == this.COMMON_CONTACTS_STATE) {
+    } else if (state == this.COMMON_CONTACTS) {
       cols = [col_tableName, col_countCall]
-    } else if (this.state == this.RECORDS_COMMON_CONTACTS_STATE) {
+    } else if (state == this.RECORDS_COMMON_CONTACTS) {
       cols = [col_startTime, col_callType, col_duration, col_tableName]
     }
 
-    return colDefs.concat(cols);;
+    this.currentColDefs = colDefs.concat(cols);;
   }
 
   /** 增加联系人信息*/
@@ -253,10 +237,13 @@ export class AgGridComponent {
 
   onRowDataChange(e) {
     console.log('on row data change');
-
+    if (!this.isHistory) {
+      this.setHistoryData(this.displayData, this.state)
+    }
     if (this.gridData.length > 0) {
       this.autoSizeAll();
     }
+    this.isHistory = false;
   }
 
   //自动设置列宽度
@@ -273,17 +260,16 @@ export class AgGridComponent {
     this.agGrid.gridOptions.api.redrawRows()
   }
 
-  isExternalFilterPresent(){
-    console.log('isFilter:',isFilter);
+  //外部过滤器回调
+  isExternalFilterPresent() {
     return isFilter;
   }
 
-  doesExternalFilterPass(node:RowNode){
-    console.log(filterData);
-    if(filterData) isFilter = false;
-    if(filterData.field == Model.OTHER_NUMBER){
+  doesExternalFilterPass(node: RowNode) {
+    if (filterData) isFilter = false;
+    if (filterData.field == Model.OTHER_NUMBER) {
       return node.data[Model.OTHER_NUMBER] === filterData.value
-    }else if(filterData.field == Model.START_TIME){
+    } else if (filterData.field == Model.START_TIME) {
       const startTime = moment(filterData.value);
       return moment(node.data[Model.START_TIME]).dayOfYear() === startTime.dayOfYear()
     }
@@ -305,13 +291,13 @@ export class AgGridComponent {
     }, 1000);
   }
 
-  private onLongPress(e:CellEvent){
+  private onLongPress(e: CellEvent) {
     const field = e.colDef.field;
-    if(field === Model.OTHER_NUMBER || field === Model.START_TIME){
+    if (field === Model.OTHER_NUMBER || field === Model.START_TIME) {
       isFilter = true;
-      filterData = {field:field,value:e.data[field]};
+      filterData = { field: field, value: e.data[field] };
       this.gridApi.onFilterChanged();
-    }else{
+    } else {
       isFilter = false;
     }
   }
@@ -344,7 +330,7 @@ export class AgGridComponent {
       return;
     }
     //通话记录表，单击显示基站位置
-    if (this.state == this.RECORDS_STATE || this.state == this.RECORDS_COMMON_CONTACTS_STATE) {
+    if (this.state == this.RECORDS || this.state == this.RECORDS_COMMON_CONTACTS) {
       const rowData = e.data;
       if (rowData.lng == 0 || rowData.lat == 0) {
         toastr.info('该基站在数据库没有找到位置信息')
@@ -356,18 +342,18 @@ export class AgGridComponent {
       }
     }
     //统计表，单击后显示号码通话详情
-    else if (this.state == this.RECORD_COUNT_STATE) {
+    else if (this.state == this.RECORD_COUNT) {
       console.log("显示该号码");
       const rowData = e.data;
       const num = rowData[Model.OTHER_NUMBER];
-      this.showRecords(this.getRecordsByNumber(num));
+      this.showData(this.getRecordsByNumber(num), this.RECORDS);
     }
-    else if (this.state == this.COMMON_CONTACTS_STATE) {
+    else if (this.state == this.COMMON_CONTACTS) {
       let otherNumber = e.data[Model.OTHER_NUMBER];
       let tables = e.data[Model.TABLE_NAME].split(' | ')
       this.dbService.getRecordsByNumberAndTable(otherNumber, tables)
         .done(res => {
-          this.showCommonContactsRecords(res)
+          this.showData(res, this.RECORDS_COMMON_CONTACTS)
         })
     }
   }
@@ -446,7 +432,7 @@ export class AgGridComponent {
             this.isEdit = false;
             console.log("edit ok")
             Model.ContactsMap.set(e.data[Model.OTHER_NUMBER], e.newValue);
-            this.setGridData(this.gridData);
+            this.showData(this.gridData, this.state);
 
             this.gridApi.forEachNode(rowNode => {
               if (rowNode.data[Model.OTHER_NUMBER] == otherNumber) {
@@ -561,6 +547,15 @@ export class AgGridComponent {
     this.localStorgeService.setObject(key, ids);
   }
 
+  private get displayData() {
+    let arr = [];
+    let count = this.gridApi.getDisplayedRowCount();
+    for (let i = 0; i < count; i++) {
+      arr.push(this.gridApi.getDisplayedRowAtIndex(i).data)
+    }
+    return arr;
+  }
+
   //清除表格过滤
   onClearFilter() {
     isFilter = false;
@@ -579,11 +574,14 @@ export class AgGridComponent {
   }
 
   onClickBack() {
-    if (Model.recordsCountList) {
-      this.showRecordsCount(Model.recordsCountList);
-    } else if (Model.commonContactsList) {
-      this.showCommonContacts(Model.commonContactsList);
-    }
+    this.isHistory = true;
+    let data = this.historys[this.historyIndex - 1];
+    if (this.historyIndex > 0) this.historyIndex--;
+    this.showData(data.data, data.state)
+  }
+
+  onClickForward() {
+
   }
 
   onClickExcel() {
@@ -606,5 +604,5 @@ export class AgGridComponent {
 }
 
 import * as moment from 'moment'
-let isFilter,filterData;
+let isFilter, filterData;
 

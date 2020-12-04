@@ -15,6 +15,7 @@
         (gridReady)="onGridReady($event)"
         (rowDataChanged)="onRowDataChange($event)"
         (modelUpdated)="onDataChange($event)"
+        (rowDataUpdated) = "onDataUpdate($event)"
         (cellMouseDown) = "onCellMouseDown($event)"
         (cellClicked)="onClick($event)"
         (cellDoubleClicked)="onDoubleClick($event)"
@@ -42,6 +43,7 @@
         <div class="btnFilter imgClearFilter" (click)="onClearFilter()"></div>
     </div>
 
-    <div class="btnBack" [class.hide]="!isShowBtnBack" (click)="onClickBack()"></div>
+    <div class="btnBack" [style.display]="isShowBtnBack" (click)="onClickBack()"></div>
+    <div class="btnForward" [style.display]="isShowBtnForward" (click)="onClickForward()"></div>
     <div class="btnExcel" matTooltip="导出excel" (click)="onClickExcel()"></div>
 </div>
