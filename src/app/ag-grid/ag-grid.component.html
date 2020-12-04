@@ -15,7 +15,6 @@
         (gridReady)="onGridReady($event)"
         (rowDataChanged)="onRowDataChange($event)"
         (modelUpdated)="onDataChange($event)"
-        (rowDataUpdated) = "onDataUpdate($event)"
         (cellMouseDown) = "onCellMouseDown($event)"
         (cellClicked)="onClick($event)"
         (cellDoubleClicked)="onDoubleClick($event)"
@@ -27,8 +26,7 @@
         [class.hide]="!isShowBtnLocation"
         mat-raised-button
         color="primary"
-        (click)="onShowLocations($event)"
-    >
+        (click)="onShowLocations($event)">
         显示基站位置
     </button>
 

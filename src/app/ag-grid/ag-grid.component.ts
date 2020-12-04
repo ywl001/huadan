@@ -38,7 +38,7 @@ export class AgGridComponent {
 
   /**是否显示返回按钮，class绑定*/
   public get isShowBtnBack(): string {
-    if (this.historys.length > 2 && this.historyIndex > 0) return 'block'
+    if (this.historys.length > 1 && this.historyIndex > 0) return 'block'
     return 'none'
   }
 
@@ -126,14 +126,11 @@ export class AgGridComponent {
   }
 
   private setHistoryData(data, state) {
-    console.log(this.historys, this.historyIndex)
-    if (!state || !data || data.length == 0) return;
     let historyData = {
       state: state,
       data: data
     }
     this.historys.push(historyData)
-    this.historyIndex = this.historys.length - 1;
   }
 
   /**通过基站显示记录 */
@@ -237,8 +234,13 @@ export class AgGridComponent {
 
   onRowDataChange(e) {
     console.log('on row data change');
+    if (!this.state || !this.displayData || this.displayData.length == 0) return;
     if (!this.isHistory) {
-      this.setHistoryData(this.displayData, this.state)
+      console.log('data befroe:',this.historys.length, this.historyIndex)
+      this.historys.splice(this.historyIndex, this.historys.length - this.historyIndex - 1);
+      this.setHistoryData(this.displayData, this.state);
+      this.historyIndex = this.historys.length - 1;
+      console.log('data after:',this.historys.length, this.historyIndex)
     }
     if (this.gridData.length > 0) {
       this.autoSizeAll();
@@ -578,10 +580,15 @@ export class AgGridComponent {
     let data = this.historys[this.historyIndex - 1];
     if (this.historyIndex > 0) this.historyIndex--;
     this.showData(data.data, data.state)
+    console.log(this.historys.length, this.historyIndex)
   }
 
   onClickForward() {
-
+    this.isHistory = true;
+    let data = this.historys[this.historyIndex + 1];
+    if (this.historyIndex < this.historys.length - 1) this.historyIndex++;
+    this.showData(data.data, data.state)
+    console.log(this.historys.length, this.historyIndex)
   }
 
   onClickExcel() {
