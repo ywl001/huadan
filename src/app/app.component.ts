@@ -65,12 +65,14 @@ export class AppComponent {
 
   //获取服务器端存储的电话号码联系人信息
   private getContacts() {
-    Model.ContactsMap = new Map();
+    Model.ContactsMap = {};
     this.sqlServices.selectContactInfo().subscribe(
       res => {
-        res.forEach(item => { Model.ContactsMap.set(item.number, item.name) })
+        res.forEach(item => { Model.ContactsMap[item.number]=item
+        })
       }
     )
+    console.log(Model.ContactsMap)
   }
 
   //获取话单可能的字段

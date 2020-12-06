@@ -35,7 +35,7 @@ export class Model {
      * 列标题对端号码
      */
     public static OTHER_NUMBER_CN: string = "对端号码";
-    public static OTHER_NUMBER:string = "otherNumber"
+    public static OTHER_NUMBER: string = "otherNumber"
 
     /**
      * 列标题起始时间
@@ -55,9 +55,9 @@ export class Model {
     public static CALL_TYPE_CN: string = "通话类型";
     public static CALL_TYPE: string = "callType";
 
-     /**
-     * 列标题通话类型
-     */
+    /**
+    * 列标题通话类型
+    */
     public static TABLE_NAME: string = "话单名称";
 
 
@@ -136,7 +136,7 @@ export class Model {
     public static commonContactsList: any[];
 
     /**号码对应的姓名 */
-    public static ContactsMap: Map<string, string>;
+    public static ContactsMap;
 
 
     public static sqlUrl = '/huadan/sql.php'
@@ -146,6 +146,10 @@ export class Model {
 
     /**保存可能的表格列定义的字段，从本地assets/fields.json获取后转为map */
     public static fieldsMap;
+
+    /**号码对应的机主信息 */
+    public static CONTACT: string = 'contact'
+    public static INSERT_TIME: string = 'insertTime'
 
     ///////////////////////////////鼠标的光标/////////////////////////
     //十字光标
@@ -158,7 +162,7 @@ export class Model {
     public static CURSOR_DEFAULT = "default";
 
     //默认光标
-    public static CURSOR_AUTO="auto";
+    public static CURSOR_AUTO = "auto";
 
 
 }

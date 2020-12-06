@@ -20,7 +20,7 @@ export class LocalStorgeService {
     }
 
     public get(key:string):string {
-        return this.localStorage[key] || false;
+        return this.localStorage[key] || null;
     }
 
     public setObject(key:string, value:any):void {
@@ -28,7 +28,7 @@ export class LocalStorgeService {
     }
 
     public getObject(key:string):any {
-        return JSON.parse(this.localStorage[key] || '{}');
+        return JSON.parse(this.localStorage[key] || null);
     }
 
     public remove(key:string):any {

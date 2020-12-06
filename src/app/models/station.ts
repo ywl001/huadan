@@ -6,8 +6,8 @@ export class Station {
     lng: number = 0;
     addr: string = '';
     count: number = 1;
-    acc:number = 0;
-    recordIDs = [];
+    acc: number = 0;
+    records = [];
 
     isSame(station: Station) {
         return this.lac == station.lac && this.ci == station.ci;

@@ -18,7 +18,6 @@ import { RouterModule, Routes } from '@angular/router';
 //输入网址后路由定向
 import { HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { AgGridModule } from 'ag-grid-angular';
-
 import { AppComponent } from './app.component';
 import { MapComponent } from './map/map.component';
 import { MenuComponent } from './menu/menu.component';
@@ -29,6 +28,8 @@ import { CommonContactsComponent } from './common-contacts/common-contacts.compo
 import { OtherNumberFilterComponent } from './other-number-filter/other-number-filter.component';
 import { NumberComponent } from './number/number.component';
 import { AddLbsLocationComponent } from './add-lbs-location/add-lbs-location.component';
+import { OtherNumberTooltipComponent } from './other-number-tooltip/other-number-tooltip.component';
+
 
 const appRoutes: Routes = [
   { path: '', component: MapComponent },
@@ -47,6 +48,7 @@ const appRoutes: Routes = [
     OtherNumberFilterComponent,
     NumberComponent,
     AddLbsLocationComponent,
+    OtherNumberTooltipComponent
   ],
   imports: [
     BrowserModule,
@@ -64,7 +66,7 @@ const appRoutes: Routes = [
     AngularDraggableModule,
     MatCardModule,
     RouterModule.forRoot(appRoutes),
-    AgGridModule.withComponents([ColumnHeaderComponent, OtherNumberFilterComponent]),
+    AgGridModule.withComponents([OtherNumberFilterComponent,OtherNumberTooltipComponent]),
   ],
   providers: [{ provide: LocationStrategy, useClass: HashLocationStrategy }],
   bootstrap: [AppComponent],

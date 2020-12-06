@@ -1,7 +1,7 @@
 import { Station } from "./station";
 
 export class Record {
-    id:number = 0;
+    id: number = 0;
     mnc: number = 0;
     lac: number = 0;
     ci: number = 0;
@@ -17,28 +17,24 @@ export class Record {
     static toStations(records: Array<Record>): Array<Station> {
         let stations = [];
         //计数基站
-        let hasLbsMap = new Map();
-        let noHasLbsMap = new Map();
-        let len = records.length;
-        //获取基站的唯一值
-        for (let i = 0; i < len; i++) {
-            let r = records[i];
-            let key = r.lac + ":" + r.ci;
-
-            if(r.lng ==0 || r.lat ==0 ||r.lac ==0 ||r.ci==0)
-                continue;
-            else if (!hasLbsMap.has(key)) {
-                let station = Station.toStation(r);
-                station.recordIDs.push(r.id);
-                stations.push(station);
-                hasLbsMap.set(key, station);
-            } else {
-                let station = hasLbsMap.get(key)
-                station.recordIDs.push(r.id);
+        let stationMap = new Map();
+        records.forEach(r => {
+            if (r.lng != 0 && r.lat != 0 && r.lac != 0 && r.ci != 0) {
+                const key = `${r.lac}:${r.ci}`;
+                if (!stationMap.has(key)) {
+                    const station = Station.toStation(r);
+                    station.records.push(r);
+                    stations.push(station);
+                    stationMap.set(key, station);
+                } else {
+                    let station = stationMap.get(key)
+                    station.records.push(r);
+                }
             }
-        }
+        })
+       
         stations.sort((a, b) => {
-            if (a.recordIDs.length > b.recordIDs.length)
+            if (a.records.length > b.records.length)
                 return 1;
             return -1;
         })
@@ -46,7 +42,7 @@ export class Record {
         return stations;
     }
 
-    static rowToRecord(row):Record{
+    static rowToRecord(row): Record {
         let r = new Record();
         for (let key in row) {
             if (r.hasOwnProperty(key)) {

@@ -1,5 +1,5 @@
 import { Component, ViewChild } from '@angular/core';
-import { AgGridNg2 } from 'ag-grid-angular';
+
 import { CellEvent, CellValueChangedEvent, ColumnApi, GridApi, RowNode } from 'ag-grid-community';
 import * as EventBus from 'eventbusjs';
 import * as toastr from 'toastr';
@@ -11,6 +11,7 @@ import { Model } from './../models/Model';
 import { DbService } from './../services/db.service';
 import { LocalStorgeService } from './../services/local-storge.service';
 import { OtherNumberFilterComponent } from '../other-number-filter/other-number-filter.component';
+import { OtherNumberTooltipComponent } from '../other-number-tooltip/other-number-tooltip.component';
 import { Station } from '../models/station';
 import { Record } from '../models/record';
 import { MatDialog } from '@angular/material/dialog';
@@ -33,8 +34,7 @@ export class AgGridComponent {
   //表格显示状态
   private _state;
 
-  @ViewChild('agGrid')
-  agGrid: AgGridNg2;
+  @ViewChild('agGrid') agGrid;
 
   /**是否显示返回按钮，class绑定*/
   public get isShowBtnBack(): string {
@@ -68,13 +68,29 @@ export class AgGridComponent {
   /** 作为编辑后修改相同网格后，防止递归的一种标志 */
   private isEdit;
 
-  frameworkComponents;
-
   private historys: any[] = [];
   private historyIndex = 0;
   private isHistory;
 
   private currentColDefs;
+
+  /**国际化文本 */
+  localeText = {
+    // for text filter
+    contains: '包含',
+    notContains: '不包含',
+    startsWith: '开始于',
+    endsWith: '结束于',
+    filterOoo: '过滤。。。',
+    applyFilter: '过滤完成',
+    equals: '等于',
+    notEqual: '不等于',
+    andCondition: '并且',
+    orCondition: '或者',
+  }
+
+  frameworkComponents
+
 
   constructor(
     private dbService: DbService,
@@ -82,7 +98,10 @@ export class AgGridComponent {
     public dialog: MatDialog,
     private sqlService: SqlService) {
 
-    this.frameworkComponents = { otherNumberFilter: OtherNumberFilterComponent };
+    this.frameworkComponents = {
+      otherNumberFilter: OtherNumberFilterComponent,
+      myToolTip: OtherNumberTooltipComponent
+    };
 
     //显示统计表，从menu
     EventBus.addEventListener(EventType.SHOW_RECORD_COUNT, e => { this.showData(e.target, this.RECORD_COUNT) });
@@ -108,7 +127,7 @@ export class AgGridComponent {
   }
   public set state(value) {
     this._state = value;
-    this.isShowBtnSave = this.isShowBtnLocation = value == this.RECORDS
+    this.isShowBtnSave = this.isShowBtnLocation = (value === this.RECORDS)
     this.getRowStyle(value);
     this.getColDefs(value)
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, this.getGridWidth(value));
@@ -134,15 +153,8 @@ export class AgGridComponent {
   }
 
   /**通过基站显示记录 */
-  private showStationsRecordes(ids) {
-    let recordMap = Model.allRecordsMap;
-    let data = [];
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      let record = recordMap.get(id);
-      data.push(record);
-    }
-    this.showData(data, this.RECORDS);
+  private showStationsRecordes(records) {
+    this.showData(records, this.RECORDS);
   }
 
   private getGridWidth(state) {
@@ -188,16 +200,21 @@ export class AgGridComponent {
   private getColDefs(state) {
     let colDefs: any[] = [];
     let col_otherNumber = {
-      headerName: Model.OTHER_NUMBER_CN, field: Model.OTHER_NUMBER, colId: Model.OTHER_NUMBER, editable: true,
+      headerName: Model.OTHER_NUMBER_CN,
+      field: Model.OTHER_NUMBER,
+      colId: Model.OTHER_NUMBER,
+      editable: true,
       tooltipField: Model.OTHER_NUMBER,//信息提示字段
+      tooltipComponent: "myToolTip",
       filter: "otherNumberFilter",
       //获取或设置值
       valueGetter: (params) => {
-        return params.data.contact ? params.data.contact : params.data[Model.OTHER_NUMBER]
+        return params.data.contact ? params.data.contact.name : params.data[Model.OTHER_NUMBER]
       },
       valueSetter: (params) => {
-        params.data.contact = params.newValue;
-      }
+        params.data.contact = { name: params.newValue, number: params.data[Model.OTHER_NUMBER], insertTime: moment().format("YYYY-MM-DD") };
+      },
+
     }
     const col_startTime = { headerName: Model.START_TIME_CN, field: Model.START_TIME, colId: Model.START_TIME };
     const col_callType = { headerName: Model.CALL_TYPE_CN, field: Model.CALL_TYPE, colId: Model.CALL_TYPE };
@@ -218,7 +235,7 @@ export class AgGridComponent {
     } else if (state == this.COMMON_CONTACTS) {
       cols = [col_tableName, col_countCall]
     } else if (state == this.RECORDS_COMMON_CONTACTS) {
-      cols = [col_startTime, col_callType, col_duration, col_tableName]
+      cols = [col_startTime, col_callType, col_duration, col_tableName, col_countTable]
     }
 
     this.currentColDefs = colDefs.concat(cols);;
@@ -228,19 +245,22 @@ export class AgGridComponent {
   private addContactsInfo(data) {
     for (let i = 0; i < data.length; i++) {
       let num = data[i][Model.OTHER_NUMBER];
-      data[i]["contact"] = Model.ContactsMap.get(num);
+      data[i][Model.CONTACT] = Model.ContactsMap[num];
     }
   }
 
+  /**当行数据改变时会触发，此时要将数据加入历史数据队列， */
   onRowDataChange(e) {
     console.log('on row data change');
     if (!this.state || !this.displayData || this.displayData.length == 0) return;
     if (!this.isHistory) {
-      console.log('data befroe:',this.historys.length, this.historyIndex)
-      this.historys.splice(this.historyIndex, this.historys.length - this.historyIndex - 1);
+      // console.log('data befroe:', this.historys.length, this.historyIndex);
+      //数据改变时，删除指针后面的数据，加入当前表数据，重新设置指针到数组结尾
+      this.historys.splice(this.historyIndex + 1);
       this.setHistoryData(this.displayData, this.state);
       this.historyIndex = this.historys.length - 1;
-      console.log('data after:',this.historys.length, this.historyIndex)
+      // console.log('data after:', this.historys.length, this.historyIndex)
+      // console.log(this.historys)
     }
     if (this.gridData.length > 0) {
       this.autoSizeAll();
@@ -263,6 +283,7 @@ export class AgGridComponent {
   }
 
   //外部过滤器回调
+  //注意，外部过滤器使用的两个参数，在类外面定义
   isExternalFilterPresent() {
     return isFilter;
   }
@@ -340,7 +361,7 @@ export class AgGridComponent {
         let station = Station.toStation(rowData);
         this.setStationRecords(station);
         EventBus.dispatch(EventType.TOGGLE_LEFT, false);
-        EventBus.dispatch(EventType.SHOW_STATION, station);
+        EventBus.dispatch(EventType.SHOW_STATIONS, [station]);
       }
     }
     //统计表，单击后显示号码通话详情
@@ -367,7 +388,7 @@ export class AgGridComponent {
       let element = this.gridApi.getDisplayedRowAtIndex(i).data;
       let s = Station.toStation(element)
       if (station.isSame(s)) {
-        station.recordIDs.push(element.id);
+        station.records.push(element.id);
       }
     }
   }
@@ -413,7 +434,6 @@ export class AgGridComponent {
     }
     console.log('db click')
   }
-
   //当修改单元格内容后
   onCellValueChange(e: CellValueChangedEvent) {
     //设置手动修改标志，避免因刷新数据造成递归
@@ -423,7 +443,7 @@ export class AgGridComponent {
     const otherNumber = e.data[Model.OTHER_NUMBER];
     if (otherNumber == '') {
       toastr.warning('请勿修改空白号码');
-      e.node.setDataValue('对端', e.oldValue);
+      e.node.setDataValue(Model.OTHER_NUMBER, e.oldValue);
       this.isEdit = false;
       return;
     }
@@ -433,13 +453,13 @@ export class AgGridComponent {
           if (res) {
             this.isEdit = false;
             console.log("edit ok")
-            Model.ContactsMap.set(e.data[Model.OTHER_NUMBER], e.newValue);
+            Model.ContactsMap[e.data[Model.OTHER_NUMBER]] = e.newValue;
             this.showData(this.gridData, this.state);
 
             this.gridApi.forEachNode(rowNode => {
               if (rowNode.data[Model.OTHER_NUMBER] == otherNumber) {
                 // rowNode.data[Model.OTHER_NUMBER] = e.newValue;
-                rowNode.setDataValue('对端', e.newValue);
+                rowNode.setDataValue(Model.OTHER_NUMBER, e.newValue);
               }
             })
           } else {
@@ -497,14 +517,12 @@ export class AgGridComponent {
       if (this.isClick) {
         EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, true);
         //根据索引判断是否有存储，如果有，使用存储的，没有则设置
-        let key = this.getSaveKey(index)
-        let ids = this.localStorgeService.getObject(key);
-        let arr = Object.keys(ids)
-        if (arr.length > 0) {
-          let records = this.idsToRecords(ids);
-          this.gridData = records;
+        let key = this.getSaveKey(index);
+        let data = this.localStorgeService.getObject(key);
+        if (data) {
+          this.gridData = data;
         } else {
-          this.saveDisplayData(key);
+          this.localStorgeService.setObject(key, this.displayData);
         }
       }
     }, 500);
@@ -513,17 +531,6 @@ export class AgGridComponent {
   /**根据索引获取存储的键 */
   private getSaveKey(index) {
     return Model.currentTable + '_f' + index;
-  }
-
-  private idsToRecords(ids): Array<Record> {
-    let records = [];
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      //字符串key还得转数字，否则获取不到值。。。
-      let record = Model.allRecordsMap.get(+id);
-      if (record) records.push(record)
-    }
-    return records;
   }
 
   //双击按钮清除存储数据
@@ -537,16 +544,6 @@ export class AgGridComponent {
       EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, true);
     }, 500);
     console.log('db click');
-  }
-
-  //存储当前显示数据
-  private saveDisplayData(key) {
-    let ids = [];
-    let count = this.gridApi.getDisplayedRowCount();
-    for (let i = 0; i < count; i++) {
-      ids.push(this.gridApi.getDisplayedRowAtIndex(i).id)
-    }
-    this.localStorgeService.setObject(key, ids);
   }
 
   private get displayData() {
@@ -612,4 +609,3 @@ export class AgGridComponent {
 
 import * as moment from 'moment'
 let isFilter, filterData;
-

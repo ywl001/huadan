@@ -31,8 +31,8 @@ export class OtherNumberFilterComponent implements IFilterAngularComp {
         return true
       }
     }
-    if (contact) {
-      return contact.indexOf(text) >= 0;
+    if (contact && contact.name) {
+      return contact.name.indexOf(text) >= 0;
     }
     return false;
   }

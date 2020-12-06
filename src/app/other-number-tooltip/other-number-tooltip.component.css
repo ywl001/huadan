@@ -1,0 +1,25 @@
+:host {
+    position: absolute;
+    width: 120px;
+    border: 1px solid cornflowerblue;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity 1s;
+    background: #fffbe5;
+}
+
+/* :host.ag-tooltip-hiding {
+    opacity: 0;
+} */
+
+.tooltip {
+    padding: 5px;
+    line-height: 8px;
+    text-overflow: ellipsis;
+}
+
+span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

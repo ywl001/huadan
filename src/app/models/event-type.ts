@@ -4,7 +4,7 @@ export class EventType {
     public static SHOW_STATIONS: string = "showStations";
 
     /**显示单个基站，带station */
-    public static SHOW_STATION: string = "showStation";
+    // public static SHOW_STATION: string = "showStation";
 
     /**开关中间表格，可带数字参数，1表示表格宽度不变，其他数字表示表格宽度调整为该数字*/
     public static TOGGLE_MIDDLE: string = "openMiddle";

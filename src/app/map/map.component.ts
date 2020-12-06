@@ -8,6 +8,7 @@ import { DbService } from '../services/db.service';
 import { Station } from '../models/station';
 import { MatDialog } from '@angular/material/dialog';
 import { AddLbsLocationComponent } from '../add-lbs-location/add-lbs-location.component';
+import { Record } from '../models/record';
 
 declare var BMap;
 declare var BMapLib;
@@ -37,7 +38,7 @@ export class MapComponent implements OnInit {
 
   private focusIndex = 1000000;
 
-  private isBatch;
+  private isMultiple;
   private countStation;
 
   private prevMark;
@@ -46,9 +47,9 @@ export class MapComponent implements OnInit {
 
   isSetLbsLocation;
 
-  private stations: Array<Station>;
+  private _data: Array<Station>;
 
-  private lbsInfo
+  private _lbsInfo;
 
   constructor(private sqlService: SqlService,
     private dbServices: DbService,
@@ -56,15 +57,45 @@ export class MapComponent implements OnInit {
   ) {
     this.mapPoints = [];
     EventBus.addEventListener(EventType.SET_CURSOR, e => { this.bdmap.setDefaultCursor(e.target) })
-    EventBus.addEventListener(EventType.SHOW_STATION, e => { this.showLocation(e.target) });
-    EventBus.addEventListener(EventType.SHOW_STATIONS, e => { this.ShowLocations(e.target) });
+    EventBus.addEventListener(EventType.SHOW_STATIONS, e => { this.data = e.target });
     EventBus.addEventListener(EventType.CLEAR_MARKER, e => { this.clearMark() });
-    EventBus.addEventListener(EventType.SET_LBS_LOCATION, e => { this.isSetLbsLocation = true; this.lbsInfo = e.target; console.log(this.lbsInfo) })
+    EventBus.addEventListener(EventType.SET_LBS_LOCATION, e => { this.lbsInfo = e.target })
   }
 
   ngOnInit() {
     this.initMap();
     this.initdrawingManager();
+  }
+
+  public set data(value) {
+    if (value && value != this._data) {
+      this._data = value;
+      if (this.isMultiple) {
+        this.clearMark();
+      }
+      this.isMultiple = value.length > 1;
+      EventBus.dispatch(EventType.OPEN_RIGHT);
+
+    }
+    console.time("addover")
+    setTimeout(() => {
+      value.forEach(station => {
+        const m = this.createMark(station, false);
+        this.addMarkerToMap(m)
+      })
+    }, 100);
+  }
+
+  public get data() {
+    return this._data;
+  }
+
+  public get lbsInfo() {
+    return this._lbsInfo;
+  }
+  public set lbsInfo(value) {
+    this.isSetLbsLocation = true;
+    this._lbsInfo = value;
   }
 
   // 初始化地图
@@ -141,43 +172,11 @@ export class MapComponent implements OnInit {
     // }); 
   }
 
-  //显示单个基站位置
-  private showLocation(value: Station) {
-    if (!value) return;
-
-    if (this.isBatch) {
-      this.clearMark();
-      this.isBatch = false;
-    }
-    if (!this.stations) this.stations = []
-    this.stations.push(value);
-    EventBus.dispatch(EventType.OPEN_RIGHT);
-    let m = this.createMark(value, true);
-    this.addMarkerToMap(m);
-  }
-
-  //显示多个基站
-  private ShowLocations(value: Array<Station>) {
-    if (!value) return;
-    this.countStation = value.length;
-    console.time("addover")
-    this.isBatch = true;
-    this.clearMark();
-    this.stations = value;
-    EventBus.dispatch(EventType.OPEN_RIGHT);
-    setTimeout(() => {
-      for (let i = 0; i < value.length; i++) {
-        let m = this.createMark(value[i], false);
-        this.addMarkerToMap(m);
-      }
-    }, 100);
-  }
-
   private onAddOverlay() {
-    if (!this.isBatch)
+    if (!this.isMultiple)
       return;
     this.overlayIndex++;
-    if (this.overlayIndex == this.countStation) {
+    if (this.overlayIndex == this.data.length) {
       EventBus.dispatch(EventType.IS_SHOW_BUSY_ICON, false);
       console.timeEnd("addover")
       this.setMapCenter(this.mapPoints);
@@ -196,28 +195,33 @@ export class MapComponent implements OnInit {
 
     let bounds = e.overlay.getBounds();
 
-    let ids = [];
+    let records = [];
     //如果有基站，过滤当前基站的通话记录
     if (this.hasOverlayInBounds(bounds)) {
       let stations = this.getStationInBounds(bounds);
       for (let i = 0; i < stations.length; i++) {
         const s = stations[i];
-        ids = ids.concat(s.recordIDs)
+        records = records.concat(s.records)
       }
     }
     //如果没有基站，查找话单内所有当前位置基站
     else {
-      console.log('范围内没有基站');
+      console.log('范围内没有显示的基站');
       let allRecords = Model.allRecords;
       allRecords.forEach(record => {
         let p = new BMap.Point(record.lng, record.lat)
         if (bounds.containsPoint(p)) {
-          ids.push(record.id);
+          records.push(record);
         }
       });
     }
+    if(records.length == 0){
+      toastr.info('该话单在所选范围内没有基站。。');
+      return
+    }
+    this.data = Record.toStations(records)
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
-    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, ids);
+    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, records);
   }
 
   //检测绘制范围内是否有覆盖物
@@ -233,12 +237,11 @@ export class MapComponent implements OnInit {
   //获取绘制范围内的基站
   private getStationInBounds(bounds) {
     let arr = [];
-    for (let i = 0; i < this.stations.length; i++) {
-      let s = this.stations[i];
-      let p = new BMap.Point(s.lng, s.lat)
+    this.data.forEach(s => {
+      let p = new BMap.Point(s.lng, s.lat);
       if (bounds.containsPoint(p))
         arr.push(s);
-    }
+    })
     return arr;
   }
 
@@ -254,7 +257,7 @@ export class MapComponent implements OnInit {
     this.bdmap.addOverlay(marker);
     this.zIndex++;
 
-    if (!this.isBatch) {
+    if (!this.isMultiple) {
       this.setMapCenter(this.mapPoints);
     }
     this.prevMark = marker;
@@ -286,7 +289,7 @@ export class MapComponent implements OnInit {
     marker.addEventListener('mouseout', ($event) => { this.onMarkerOut($event) });
   }
 
-  //创建marker
+  /**创建mark，station：数据，isfocus：是否焦点图标 */
   private createMark(station: Station, isFocus: boolean) {
     let marker;
     let point = new BMap.Point(station.lng, station.lat);
@@ -306,7 +309,7 @@ export class MapComponent implements OnInit {
 
   private createIcon(station: Station, isFocus) {
     let url = "assets/location_lightblue.png";
-    let count = station.recordIDs.length;
+    let count = station.records.length;
     if (isFocus) {
       url = "assets/location_focus.png"
     } else if (count > 50) {
@@ -330,7 +333,7 @@ export class MapComponent implements OnInit {
 
   private createLabel(station: Station, isFocus) {
     let dx = 3, dy = 2, fz = 16;
-    let count = station.recordIDs.length;
+    let count = station.records.length;
     let color = isFocus ? 'yellow' : 'dimgray';
     if (count < 10) {
       dx = 7;
@@ -370,7 +373,7 @@ export class MapComponent implements OnInit {
   private onMarkerDoubleClick(e) {
     let station: Station = e.target.attributes;
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
-    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, station.recordIDs);
+    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, station.records);
   }
 
   //鼠标overMark
@@ -399,23 +402,23 @@ export class MapComponent implements OnInit {
   }
 
   //根据基站编号获取位置
-  private getStationLocation(station: Station) {
-    this.sqlService.getLbsLocation(station.lac, station.ci, station.mnc)
-      .subscribe(
-        res => {
-          const obj = res[0];
-          if (obj) {
-            // station其他值赋值
-            station.lat = obj.bdlat;
-            station.lng = obj.bdlng;
-            station.addr = obj.addr;
-            this.showLocation(station);
-          } else {
-            toastr.info("没有找到基站位置");
-          }
-        }
-      )
-  }
+  // private getStationLocation(station: Station) {
+  //   this.sqlService.getLbsLocation(station.lac, station.ci, station.mnc)
+  //     .subscribe(
+  //       res => {
+  //         const obj = res[0];
+  //         if (obj) {
+  //           // station其他值赋值
+  //           station.lat = obj.bdlat;
+  //           station.lng = obj.bdlng;
+  //           station.addr = obj.addr;
+  //           this.showLocation(station);
+  //         } else {
+  //           toastr.info("没有找到基站位置");
+  //         }
+  //       }
+  //     )
+  // }
 
   //清楚全部mark
   clearMark() {
@@ -424,7 +427,6 @@ export class MapComponent implements OnInit {
       this.bdmap.clearOverlays();
       this.mapPoints = [];
       this.prevMark = null;
-      this.stations = [];
     }
   }
 
