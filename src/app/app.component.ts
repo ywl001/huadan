@@ -4,7 +4,7 @@ import { TweenMax } from 'gsap';
 
 import * as EventBus from 'eventbusjs'
 import { EventType } from './models/event-type';
-import { Model } from './models/Model';
+import { CommonData } from './models/commonData';
 import { ResizeEvent } from './models/resize-event';
 import { Router, NavigationEnd } from '@angular/router';
 import { SqlService } from './services/sql.service';
@@ -49,10 +49,10 @@ export class AppComponent {
   ngOnInit(): void {
     this.getContacts();
     this.getFieldsMap();
-    Model.width = window.innerWidth;
-    Model.height = window.innerHeight;
+    CommonData.width = window.innerWidth;
+    CommonData.height = window.innerHeight;
     window.addEventListener('resize', e => {
-      Model.width = (<Window>(e.target)).innerWidth;
+      CommonData.width = (<Window>(e.target)).innerWidth;
     })
 
     //获取当前url，当点击左侧关闭按钮时使用
@@ -65,23 +65,21 @@ export class AppComponent {
 
   //获取服务器端存储的电话号码联系人信息
   private getContacts() {
-    Model.ContactsMap = {};
+    CommonData.ContactsMap = new Map();
     this.sqlServices.selectContactInfo().subscribe(
       res => {
-        res.forEach(item => { Model.ContactsMap[item.number]=item
-        })
+        res.forEach(item => {CommonData.ContactsMap.set(item.number, item)})
       }
     )
-    console.log(Model.ContactsMap)
   }
 
   //获取话单可能的字段
   private getFieldsMap() {
-    Model.fieldsMap = new Map();
+    CommonData.fieldsMap = new Map();
     this.http.get("assets/fields.json").subscribe(
       data => {
         for (const key in data) {
-          data[key].forEach(item => { Model.fieldsMap.set(item, key) })
+          data[key].forEach(item => { CommonData.fieldsMap.set(item, key) })
         }
       }
     )
@@ -134,7 +132,7 @@ export class AppComponent {
   }
 
   private maxMiddle() {
-    let w = this.isLeftOpen ? Model.width - 280 : Model.width;
+    let w = this.isLeftOpen ? CommonData.width - 280 : CommonData.width;
     this.setMiddleWidth(w);
     this.isMaxMiddle = true;
     this.isMinMiddle = false;
@@ -168,7 +166,7 @@ export class AppComponent {
     this.container.clear();
     const factory: ComponentFactory<CommonContactsComponent> = this.resolver.resolveComponentFactory(CommonContactsComponent);
     let componentRef = this.container.createComponent(factory);
-    componentRef.instance.tables = Model.tables;
+    componentRef.instance.tables = CommonData.tables;
 
     TweenMax.to(".commonContacts", 0.5, { left: "285px" })
   }

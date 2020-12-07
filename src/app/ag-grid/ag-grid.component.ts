@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import { EventType } from '../models/event-type';
 
 import { SqlService } from '../services/sql.service';
-import { Model } from './../models/Model';
+import { CommonData } from '../models/commonData';
 import { DbService } from './../services/db.service';
 import { LocalStorgeService } from './../services/local-storge.service';
 import { OtherNumberFilterComponent } from '../other-number-filter/other-number-filter.component';
@@ -87,9 +87,17 @@ export class AgGridComponent {
     notEqual: '不等于',
     andCondition: '并且',
     orCondition: '或者',
+    lessThan:'小于',
+    lessThanOrEquals:'小于等于',
+    greaterThan:'大于',
+    greaterThanOrEquals:'大于等于',
+    inRange:'在范围内'
   }
 
-  frameworkComponents
+  frameworkComponents= {
+    otherNumberFilter: OtherNumberFilterComponent,
+    myToolTip: OtherNumberTooltipComponent
+  };
 
 
   constructor(
@@ -97,19 +105,13 @@ export class AgGridComponent {
     private localStorgeService: LocalStorgeService,
     public dialog: MatDialog,
     private sqlService: SqlService) {
-
-    this.frameworkComponents = {
-      otherNumberFilter: OtherNumberFilterComponent,
-      myToolTip: OtherNumberTooltipComponent
-    };
-
     //显示统计表，从menu
     EventBus.addEventListener(EventType.SHOW_RECORD_COUNT, e => { this.showData(e.target, this.RECORD_COUNT) });
     //显示通话记录，从menu,map
     EventBus.addEventListener(EventType.SHOW_RECORDS, e => { this.showData(e.target, this.RECORDS) });
     EventBus.addEventListener(EventType.SHOW_COMMON_CONTACTS, e => { this.showData(e.target, this.COMMON_CONTACTS) });
     EventBus.addEventListener(EventType.CLEAR_GRID_DATA, e => { this.gridData = []; });
-    EventBus.addEventListener(EventType.SHOW_STATIONS_RECORDS, e => { this.showStationsRecordes(e.target); });
+    EventBus.addEventListener(EventType.SHOW_STATIONS_RECORDS, e => { this.showData(e.target,this.RECORDS); });
     EventBus.addEventListener(EventType.SHOW_SEARCH_RECORDS, e => { this.showData(e.target, this.RECORDS_COMMON_CONTACTS); });
   }
 
@@ -152,11 +154,6 @@ export class AgGridComponent {
     this.historys.push(historyData)
   }
 
-  /**通过基站显示记录 */
-  private showStationsRecordes(records) {
-    this.showData(records, this.RECORDS);
-  }
-
   private getGridWidth(state) {
     if (state == this.RECORDS) return 1;
     else if (state == this.COMMON_CONTACTS) return 450;
@@ -172,14 +169,14 @@ export class AgGridComponent {
       };
     } else {
       this.agGrid.gridOptions.getRowStyle = (params) => {
-        if (params.data[Model.TABLE_NAME]) {
+        if (params.data[Field.TABLE_NAME]) {
           let color, opacity = 1;
-          const tables = Model.tables;
+          const tables = CommonData.tables;
           if (params.data.lat == 0 || params.data.lng == 0) {
             opacity = 0.5
           }
           for (let i = 0; i < tables.length; i++) {
-            if (params.data[Model.TABLE_NAME] == tables[i].name) {
+            if (params.data[Field.TABLE_NAME] == tables[i].name) {
               if (i % 4 == 0) color = 'white';
               else if (i % 4 == 1) color = 'lightblue';
               else if (i % 4 == 2) color = 'lightgreen';
@@ -200,31 +197,33 @@ export class AgGridComponent {
   private getColDefs(state) {
     let colDefs: any[] = [];
     let col_otherNumber = {
-      headerName: Model.OTHER_NUMBER_CN,
-      field: Model.OTHER_NUMBER,
-      colId: Model.OTHER_NUMBER,
+      headerName: Field.OTHER_NUMBER_CN,
+      field: Field.OTHER_NUMBER,
+      colId: Field.OTHER_NUMBER,
       editable: true,
-      tooltipField: Model.OTHER_NUMBER,//信息提示字段
+      tooltipField: Field.OTHER_NUMBER,//信息提示字段
       tooltipComponent: "myToolTip",
       filter: "otherNumberFilter",
+      sortable:true,
+      resizable: true,
       //获取或设置值
       valueGetter: (params) => {
-        return params.data.contact ? params.data.contact.name : params.data[Model.OTHER_NUMBER]
+        return params.data.contact ? params.data.contact.name : params.data[Field.OTHER_NUMBER]
       },
+      //当修改值的时候，再valueSetter中要设置。修改号码的联系人信息，会反应到这里。
       valueSetter: (params) => {
-        params.data.contact = { name: params.newValue, number: params.data[Model.OTHER_NUMBER], insertTime: moment().format("YYYY-MM-DD") };
+        params.data.contact = { name: params.newValue, number: params.data[Field.OTHER_NUMBER], insertTime: moment().format("YYYY-MM-DD") };
       },
-
     }
-    const col_startTime = { headerName: Model.START_TIME_CN, field: Model.START_TIME, colId: Model.START_TIME };
-    const col_callType = { headerName: Model.CALL_TYPE_CN, field: Model.CALL_TYPE, colId: Model.CALL_TYPE };
-    const col_duration = { headerName: Model.DURATION_CN, field: Model.DURATION, colId: Model.DURATION };
-    const col_lac = { headerName: Model.LAC_CN, field: Model.LAC, colId: Model.LAC };
-    const col_ci = { headerName: Model.CI_CN, field: Model.CI, colId: Model.CI }
-    const col_countCall = { headerName: Model.COUNT_CALL, field: Model.COUNT_CALL, colId: Model.COUNT_CALL };
-    const col_totalTime = { headerName: Model.TOTAL_TIME, field: Model.TOTAL_TIME, colId: Model.TOTAL_TIME }
-    const col_tableName = { headerName: Model.TABLE_NAME, field: Model.TABLE_NAME, colId: Model.TABLE_NAME };
-    const col_countTable = { headerName: Model.COUNT_TABLE, field: Model.COUNT_TABLE, colId: Model.COUNT_TABLE }
+    const col_startTime = { headerName: Field.START_TIME_CN, field: Field.START_TIME, colId: Field.START_TIME,sortable:true,filter:true,resizable: true };
+    const col_callType = { headerName: Field.CALL_TYPE_CN, field: Field.CALL_TYPE, colId: Field.CALL_TYPE,sortable:true,filter:true,resizable: true };
+    const col_duration = { headerName: Field.DURATION_CN, field: Field.DURATION, colId: Field.DURATION,sortable:true,filter:'agNumberColumnFilter',resizable: true};
+    const col_lac = { headerName: Field.LAC_CN, field: Field.LAC, colId: Field.LAC,sortable:true,filter:true,resizable: true };
+    const col_ci = { headerName: Field.CI_CN, field: Field.CI, colId: Field.CI,sortable:true,filter:true,resizable: true }
+    const col_countCall = { headerName: Field.COUNT_CALL, field: Field.COUNT_CALL, colId: Field.COUNT_CALL,sortable:true,filter:'agNumberColumnFilter',resizable: true };
+    const col_totalTime = { headerName: Field.TOTAL_TIME, field: Field.TOTAL_TIME, colId: Field.TOTAL_TIME,sortable:true,resizable: true }
+    const col_tableName = { headerName: Field.TABLE_NAME, field: Field.TABLE_NAME, colId: Field.TABLE_NAME,sortable:true,resizable: true };
+    const col_countTable = { headerName: Field.COUNT_TABLE, field: Field.COUNT_TABLE, colId: Field.COUNT_TABLE,sortable:true,resizable: true }
     colDefs.push(col_otherNumber);
     let cols;
 
@@ -233,20 +232,19 @@ export class AgGridComponent {
     } else if (state == this.RECORD_COUNT) {
       cols = [col_countCall, col_totalTime]
     } else if (state == this.COMMON_CONTACTS) {
-      cols = [col_tableName, col_countCall]
+      cols = [col_tableName]
     } else if (state == this.RECORDS_COMMON_CONTACTS) {
-      cols = [col_startTime, col_callType, col_duration, col_tableName, col_countTable]
+      cols = [col_startTime, col_callType, col_duration, col_tableName]
     }
 
     this.currentColDefs = colDefs.concat(cols);;
   }
 
   /** 增加联系人信息*/
-  private addContactsInfo(data) {
-    for (let i = 0; i < data.length; i++) {
-      let num = data[i][Model.OTHER_NUMBER];
-      data[i][Model.CONTACT] = Model.ContactsMap[num];
-    }
+  private addContactsInfo(data:any[]) {
+    data.forEach(item=>{
+      item[Field.CONTACT] = CommonData.ContactsMap.get(item[Field.OTHER_NUMBER])
+    })
   }
 
   /**当行数据改变时会触发，此时要将数据加入历史数据队列， */
@@ -290,11 +288,11 @@ export class AgGridComponent {
 
   doesExternalFilterPass(node: RowNode) {
     if (filterData) isFilter = false;
-    if (filterData.field == Model.OTHER_NUMBER) {
-      return node.data[Model.OTHER_NUMBER] === filterData.value
-    } else if (filterData.field == Model.START_TIME) {
+    if (filterData.field == Field.OTHER_NUMBER) {
+      return node.data[Field.OTHER_NUMBER] === filterData.value
+    } else if (filterData.field == Field.START_TIME) {
       const startTime = moment(filterData.value);
-      return moment(node.data[Model.START_TIME]).dayOfYear() === startTime.dayOfYear()
+      return moment(node.data[Field.START_TIME]).dayOfYear() === startTime.dayOfYear()
     }
   }
 
@@ -316,7 +314,7 @@ export class AgGridComponent {
 
   private onLongPress(e: CellEvent) {
     const field = e.colDef.field;
-    if (field === Model.OTHER_NUMBER || field === Model.START_TIME) {
+    if (field === Field.OTHER_NUMBER || field === Field.START_TIME) {
       isFilter = true;
       filterData = { field: field, value: e.data[field] };
       this.gridApi.onFilterChanged();
@@ -330,14 +328,14 @@ export class AgGridComponent {
     this.isClick = true;
     let headerName = e.colDef.headerName;
     //发送事件，禁止中间容器缩放
-    if (headerName == Model.OTHER_NUMBER_CN || headerName == Model.CI_CN || headerName == Model.LAC_CN) {
+    if (headerName == Field.OTHER_NUMBER_CN || headerName == Field.CI_CN || headerName == Field.LAC_CN) {
       EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, false);
     }
 
     setTimeout(() => {
       if (this.isClick && !this.isPress) {
         console.log('click')
-        if (headerName == Model.OTHER_NUMBER_CN || headerName == Model.CI_CN || headerName == Model.LAC_CN) {
+        if (headerName == Field.OTHER_NUMBER_CN || headerName == Field.CI_CN || headerName == Field.LAC_CN) {
           EventBus.dispatch(EventType.IS_CAN_TOGGLE_MIDDLE, true);
         }
         //单击单元格逻辑
@@ -368,12 +366,12 @@ export class AgGridComponent {
     else if (this.state == this.RECORD_COUNT) {
       console.log("显示该号码");
       const rowData = e.data;
-      const num = rowData[Model.OTHER_NUMBER];
+      const num = rowData[Field.OTHER_NUMBER];
       this.showData(this.getRecordsByNumber(num), this.RECORDS);
     }
     else if (this.state == this.COMMON_CONTACTS) {
-      let otherNumber = e.data[Model.OTHER_NUMBER];
-      let tables = e.data[Model.TABLE_NAME].split(' | ')
+      let otherNumber = e.data[Field.OTHER_NUMBER];
+      let tables = e.data[Field.TABLE_NAME].split(' | ')
       this.dbService.getRecordsByNumberAndTable(otherNumber, tables)
         .done(res => {
           this.showData(res, this.RECORDS_COMMON_CONTACTS)
@@ -388,7 +386,7 @@ export class AgGridComponent {
       let element = this.gridApi.getDisplayedRowAtIndex(i).data;
       let s = Station.toStation(element)
       if (station.isSame(s)) {
-        station.records.push(element.id);
+        station.records.push(element);
       }
     }
   }
@@ -399,7 +397,7 @@ export class AgGridComponent {
     this.isClick = false;
     this.isDoubleClick = true;
     const headerName = e.colDef.headerName;
-    if (headerName === Model.LAC_CN || headerName == Model.CI_CN) {
+    if (headerName === Field.LAC_CN || headerName == Field.CI_CN) {
       console.log('双击了位置列');
       const data = e.data;
       let isHasLocation = (data.lat > 0 && data.lng > 0) ? true : false;
@@ -421,12 +419,12 @@ export class AgGridComponent {
           //通知地图监听拾取位置点
           EventBus.dispatch(EventType.SET_LBS_LOCATION, { lac: data.lac, ci: data.ci, isHasLocation: isHasLocation, gridData: this.gridData });
           //更改地图光标
-          EventBus.dispatch(EventType.SET_CURSOR, Model.CURSOR_CROSSHAIR)
+          EventBus.dispatch(EventType.SET_CURSOR, CursorType.CROSSHAIR)
         }
       });
     }
     //当双击对端号码时，关闭页面的缩放
-    else if (headerName == Model.OTHER_NUMBER_CN) {
+    else if (headerName == Field.OTHER_NUMBER_CN) {
       console.log('双击了对端号码列');
       //是否手动修改的标志
       this.isEdit = true;
@@ -440,26 +438,25 @@ export class AgGridComponent {
     if (!this.isEdit)
       return;
     console.log('cell value change');
-    const otherNumber = e.data[Model.OTHER_NUMBER];
+    const otherNumber = e.data[Field.OTHER_NUMBER];
     if (otherNumber == '') {
       toastr.warning('请勿修改空白号码');
-      e.node.setDataValue(Model.OTHER_NUMBER, e.oldValue);
+      e.node.setDataValue(Field.OTHER_NUMBER, e.oldValue);
       this.isEdit = false;
       return;
     }
-    this.sqlService.insertOrUpdateContects(e.data[Model.OTHER_NUMBER], e.newValue)
+    this.sqlService.insertOrUpdateContects(e.data[Field.OTHER_NUMBER], e.newValue)
       .subscribe(
         res => {
           if (res) {
             this.isEdit = false;
             console.log("edit ok")
-            Model.ContactsMap[e.data[Model.OTHER_NUMBER]] = e.newValue;
+            CommonData.ContactsMap.set(e.data[Field.OTHER_NUMBER],e.newValue);
             this.showData(this.gridData, this.state);
 
             this.gridApi.forEachNode(rowNode => {
-              if (rowNode.data[Model.OTHER_NUMBER] == otherNumber) {
-                // rowNode.data[Model.OTHER_NUMBER] = e.newValue;
-                rowNode.setDataValue(Model.OTHER_NUMBER, e.newValue);
+              if (rowNode.data[Field.OTHER_NUMBER] == otherNumber) {
+                rowNode.setDataValue(Field.OTHER_NUMBER, e.newValue);
               }
             })
           } else {
@@ -500,10 +497,10 @@ export class AgGridComponent {
   }
 
   private getRecordsByNumber(otherNumber) {
-    let records = Model.allRecords;
+    let records = CommonData.allRecords;
     let res: any[] = [];
     records.forEach(element => {
-      if (element[Model.OTHER_NUMBER] == otherNumber) {
+      if (element[Field.OTHER_NUMBER] == otherNumber) {
         res.push(element);
       }
     });
@@ -530,7 +527,7 @@ export class AgGridComponent {
 
   /**根据索引获取存储的键 */
   private getSaveKey(index) {
-    return Model.currentTable + '_f' + index;
+    return CommonData.currentTable + '_f' + index;
   }
 
   //双击按钮清除存储数据
@@ -602,10 +599,12 @@ export class AgGridComponent {
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
 
     /* save to file */
-    let fileName = Model.currentTable ? Model.currentTable : "共同联系人"
+    let fileName = CommonData.currentTable ? CommonData.currentTable : "共同联系人"
     XLSX.writeFile(wb, fileName + ".xlsx");
   }
 }
 
 import * as moment from 'moment'
+import { Field } from '../models/field';
+import { CursorType } from '../models/cursor-type';
 let isFilter, filterData;

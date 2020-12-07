@@ -1,4 +1,4 @@
-import { Model } from './../models/Model';
+import { CommonData } from '../models/commonData';
 import { SqlService } from './../services/sql.service';
 import { Component, OnInit, Input } from '@angular/core';
 import * as EventBus from 'eventbusjs';
@@ -9,6 +9,7 @@ import { Station } from '../models/station';
 import { MatDialog } from '@angular/material/dialog';
 import { AddLbsLocationComponent } from '../add-lbs-location/add-lbs-location.component';
 import { Record } from '../models/record';
+import { CursorType } from '../models/cursor-type';
 
 declare var BMap;
 declare var BMapLib;
@@ -82,6 +83,7 @@ export class MapComponent implements OnInit {
       value.forEach(station => {
         const m = this.createMark(station, false);
         this.addMarkerToMap(m)
+        if(!this.isMultiple) this.setFocusMarker(m)
       })
     }, 100);
   }
@@ -187,7 +189,7 @@ export class MapComponent implements OnInit {
 
   //获得绘制图形的地图范围
   private showStationAndRecordsInBounds(e) {
-    if (!Model.currentTable) {
+    if (!CommonData.currentTable) {
       toastr.warning("请先选择话单才能操作")
     }
     this.bdmap.removeOverlay(e.overlay);
@@ -207,7 +209,7 @@ export class MapComponent implements OnInit {
     //如果没有基站，查找话单内所有当前位置基站
     else {
       console.log('范围内没有显示的基站');
-      let allRecords = Model.allRecords;
+      let allRecords = CommonData.allRecords;
       allRecords.forEach(record => {
         let p = new BMap.Point(record.lng, record.lat)
         if (bounds.containsPoint(p)) {
@@ -371,6 +373,8 @@ export class MapComponent implements OnInit {
 
   /**基站图标双击，显示基站对应的通话记录 */
   private onMarkerDoubleClick(e) {
+    // console.log(e.target instanceof BMap.Marker);
+    this.setFocusMarker(e.target)
     let station: Station = e.target.attributes;
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
     EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, station.records);
@@ -440,7 +444,7 @@ export class MapComponent implements OnInit {
       console.log(this.lbsInfo.lac, this.lbsInfo.ci);
       toastr.clear();
       toastr.options.timeOut = 3000;
-      EventBus.dispatch(EventType.SET_CURSOR, Model.CURSOR_AUTO);
+      EventBus.dispatch(EventType.SET_CURSOR, CursorType.AUTO);
       const data = {
         lac: this.lbsInfo.lac,
         ci: this.lbsInfo.ci,
@@ -452,7 +456,7 @@ export class MapComponent implements OnInit {
       this.dialog.open(AddLbsLocationComponent, { data: data, disableClose: true })
     }
 
-    if ((mouseEvent.clientX > Model.width / 2 - 50 || mouseEvent.clientX < Model.width / 2 - 50) && mouseEvent.clientY < 50) {
+    if ((mouseEvent.clientX > CommonData.width / 2 - 50 || mouseEvent.clientX < CommonData.width / 2 - 50) && mouseEvent.clientY < 50) {
       this.drawingManager._drawingTool.show();
     } else {
       this.drawingManager._drawingTool.hide();
@@ -464,8 +468,6 @@ export class MapComponent implements OnInit {
     // console.log('map resize')
     let drawToolsWidth = 124;
     let dx = (e.newWidth - drawToolsWidth) / 2;
-    // console.log(e.newWidth+'--'+e.newHeight);
-    // console.log(Model.width+'--'+Model.height)
 
     let off = new BMap.Size(dx, 5);
     this.drawingManager._drawingTool.setOffset(off);

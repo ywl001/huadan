@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Model } from '../models/Model';
+import { Field } from '../models/field';
+import { CommonData } from '../models/commonData';
 import { Record } from '../models/record';
 
 declare var WebSQL;
@@ -76,7 +77,7 @@ export class DbService {
 
   //获取对端号码统计信息{对端号码，通话次数，总时长}
   getRecordCountInfo(tableName: string) {
-    const sql = `select ${Model.OTHER_NUMBER},count(${Model.OTHER_NUMBER}) 通话次数,sum(${Model.DURATION}) 总时长 from \`${tableName}\` group by ${Model.OTHER_NUMBER} order by 通话次数 desc`;
+    const sql = `select ${Field.OTHER_NUMBER},count(${Field.OTHER_NUMBER}) 通话次数,sum(${Field.DURATION}) 总时长 from \`${tableName}\` group by ${Field.OTHER_NUMBER} order by 通话次数 desc`;
     console.log(sql);
     return this.db.query(sql);
   }
@@ -86,7 +87,7 @@ export class DbService {
    * @param tableName 
    */
   getStationCountInfo(tableName) {
-    const sql = `select ${Model.LAC},${Model.CI},count(*) count from \`${tableName}\` group by ${Model.LAC},${Model.CI} order by count desc`;
+    const sql = `select ${Field.LAC},${Field.CI},count(*) count from \`${tableName}\` group by ${Field.LAC},${Field.CI} order by count desc`;
     // console.log(sql);
     return this.db.query(sql);
   }
@@ -124,10 +125,10 @@ export class DbService {
         tableNames += (allCombitions[i][j] + ' | ');
       }
       tableNames = tableNames.substr(0, tableNames.length - 3);
-      sql += `select ${Model.OTHER_NUMBER},${Model.COUNT_TABLE}, ${Model.TABLE_NAME} from (`
+      sql += `select ${Field.OTHER_NUMBER},${Field.COUNT_TABLE}, ${Field.TABLE_NAME} from (`
       for (let j = 0; j < allCombitions[i].length; j++) {
         let table = allCombitions[i][j];
-        sql += `select ${Model.OTHER_NUMBER},'${allCombitions[i].length}' ${Model.COUNT_TABLE}, '${tableNames}' ${Model.TABLE_NAME} from "${table}" InterSect `
+        sql += `select ${Field.OTHER_NUMBER},'${allCombitions[i].length}' ${Field.COUNT_TABLE}, '${tableNames}' ${Field.TABLE_NAME} from "${table}" InterSect `
       }
       sql = sql.substr(0, (sql.length - 'InterSect '.length)) + ')';
       if (i != allCombitions.length - 1) {
@@ -147,9 +148,9 @@ export class DbService {
     let sql = "";
     for (let i = 0; i < tables.length; i++) {
       let table = tables[i];
-      sql += `select ${Model.CALL_TYPE},${Model.OTHER_NUMBER},${Model.START_TIME},${Model.DURATION},'${table}' ${Model.TABLE_NAME},${Model.LAC},${Model.CI},lng,lat,addr,acc
+      sql += `select ${Field.CALL_TYPE},${Field.OTHER_NUMBER},${Field.START_TIME},${Field.DURATION},'${table}' ${Field.TABLE_NAME},${Field.LAC},${Field.CI},lng,lat,addr,acc
       from \`${table}\`
-      where ${Model.OTHER_NUMBER} = '${number}' `
+      where ${Field.OTHER_NUMBER} = '${number}' `
       if (i != tables.length - 1) {
         sql += 'union '
       }
@@ -162,12 +163,12 @@ export class DbService {
    * 获取号码在所有话单中的所有记录
    */
   getRecordsByNumber(number) {
-    let tables = Model.tables;
+    let tables = CommonData.tables;
     console.log(tables)
     let sql = '';
     for (let i = 0; i < tables.length; i++) {
       let table = tables[i]['name'];
-      sql += `select *,'${table}' ${Model.TABLE_NAME} from \`${table}\` where ${Model.OTHER_NUMBER} like '%${number}%' `
+      sql += `select *,'${table}' ${Field.TABLE_NAME} from \`${table}\` where ${Field.OTHER_NUMBER} like '%${number}%' `
       if (i != tables.length - 1) {
         sql += 'union '
       }

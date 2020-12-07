@@ -5,7 +5,6 @@ import * as toastr from 'toastr'
 import * as EventBus from 'eventbusjs'
 import { DbService } from '../services/db.service';
 import { EventType } from '../models/event-type';
-import { Model } from '../models/Model';
 
 @Component({
   selector: 'app-common-contacts',
@@ -15,32 +14,32 @@ import { Model } from '../models/Model';
 export class CommonContactsComponent {
 
   constructor(
-    private dbService:DbService,
-    ) { }
+    private dbService: DbService,
+  ) { }
 
-  @Input() tables:string[];
+  @Input() tables: string[];
 
-  onClickCancel(){
-    TweenMax.to(".commonContacts",0.5,{left:'-310px'});
+  onClickCancel() {
+    TweenMax.to(".commonContacts", 0.5, { left: '-310px' });
   }
 
-  onClickOk(commonContacts:MatSelectionList){
-    let listOptions:MatListOption[] = commonContacts.selectedOptions.selected;
+  onClickOk(commonContacts: MatSelectionList) {
+    let listOptions: MatListOption[] = commonContacts.selectedOptions.selected;
     let tables = [];
     listOptions.forEach(element => {
       tables.push(element.value);
     });
 
-    if(tables.length < 2){
+    if (tables.length < 2) {
       toastr.warning('至少选择两个以上话单');
-    }else{
+    } else {
       //获取所有话单的组合
-      let allCombinations:any[]= this.getArrayCombination(tables);
+      let allCombinations: any[] = this.getArrayCombination(tables);
       // console.log(allCombinations)
       this.dbService.getAllCommonContacts(allCombinations)
-      .done(res=>{Model.commonContactsList = res;EventBus.dispatch(EventType.SHOW_COMMON_CONTACTS,res);});
+        .done(res => { EventBus.dispatch(EventType.SHOW_COMMON_CONTACTS, res); });
     }
-    TweenMax.to(".commonContacts",0.5,{left:'-310px'});
+    TweenMax.to(".commonContacts", 0.5, { left: '-310px' });
   }
 
   //获取数组内值的所有组合

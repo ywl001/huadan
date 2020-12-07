@@ -1,19 +1,20 @@
 import { ExcelService } from './../services/excel.service';
 import { EventType } from './../models/event-type';
 import { DbService } from './../services/db.service';
-import { Component, OnInit, ChangeDetectorRef, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 
 import * as toastr from 'toastr'
 import * as EventBus from 'eventbusjs'
 import * as moment from 'moment';
 
-import { Model } from '../models/Model';
+import { CommonData } from '../models/commonData';
 import { SqlService } from '../services/sql.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { MatAccordion } from '@angular/material/expansion';
 import { MatDialog } from '@angular/material/dialog';
 import { Record } from '../models/record';
 import { NumberComponent } from '../number/number.component';
+import { Field } from '../models/field';
 
 
 declare var alertify;
@@ -30,7 +31,7 @@ export class MenuComponent implements OnInit {
   tables;
 
   // 运营商类型
-  yys = [{ label: '移动', value: 0 }, { label: '联通', value: 1 }, { label: '电信', value: 11 }];
+  yysList = [{ label: '移动', value: 0 }, { label: '联通', value: 1 }, { label: '电信', value: 11 }];
   private yysType; // 实际的运营商类型
 
   private tableName;
@@ -46,7 +47,6 @@ export class MenuComponent implements OnInit {
     private dbService: DbService,
     private sqlService: SqlService,
     private excelService: ExcelService,
-    private changeDetectorRef: ChangeDetectorRef,
     private router: Router,
     public dialog: MatDialog
   ) {
@@ -68,7 +68,7 @@ export class MenuComponent implements OnInit {
     this.dbService.getTables()
       .done(tables => {
         this.tables = tables;
-        Model.tables = tables;
+        CommonData.tables = tables;
         // 触发视图更新
         //this.changeDetectorRef.detectChanges();
       });
@@ -129,7 +129,7 @@ export class MenuComponent implements OnInit {
 
     //数据处理完成，开始创建表
     if (this.records.length > 0) {
-      let fields = [Model.OTHER_NUMBER, Model.START_TIME, Model.DURATION, Model.CALL_TYPE, Model.LAC, Model.CI, Model.LAT, Model.LNG, Model.MNC, Model.ACC, Model.ADDR]
+      let fields = [Field.OTHER_NUMBER, Field.START_TIME, Field.DURATION, Field.CALL_TYPE, Field.LAC, Field.CI, Field.LAT, Field.LNG, Field.MNC, Field.ACC, Field.ADDR]
       this.createTable(this.tableName, fields)
       console.time('insert excel:')
     }
@@ -138,7 +138,7 @@ export class MenuComponent implements OnInit {
   /**清洗excel数据，舍弃无用的字段，保留有用字段 */
   private cleanExcelData(excelData: any[]) {
     let records = [];
-    const fieldsMap = Model.fieldsMap;
+    const fieldsMap = CommonData.fieldsMap;
 
     for (let i = 0; i < excelData.length; i++) {
       const row = excelData[i];
@@ -152,7 +152,7 @@ export class MenuComponent implements OnInit {
             //去除空白字符
             value = value.trim();
             //清楚号码前的86或0086
-            if (usefulField == Model.OTHER_NUMBER) value = this.clear86(value);
+            if (usefulField == Field.OTHER_NUMBER) value = this.clear86(value);
           }
           record[usefulField] = value;
         }
@@ -209,12 +209,12 @@ export class MenuComponent implements OnInit {
     for (const key in records[0]) {
       fields.push(key);
     }
-    if (fields.indexOf(Model.OTHER_NUMBER) == -1) {
-      alertify.alert(`缺少 ${Model.OTHER_NUMBER} 列，请更改列名称为对端号码`);
+    if (fields.indexOf(Field.OTHER_NUMBER) == -1) {
+      alertify.alert(`缺少 ${Field.OTHER_NUMBER} 列，请更改列名称为对端号码`);
       return false;
     }
-    if (fields.indexOf(Model.START_TIME) == -1) {
-      alertify.alert(`缺少 ${Model.START_TIME} 列，请更改列名称为起始时间`);
+    if (fields.indexOf(Field.START_TIME) == -1) {
+      alertify.alert(`缺少 ${Field.START_TIME} 列，请更改列名称为起始时间`);
       return false;
     }
     return true;
@@ -310,11 +310,12 @@ export class MenuComponent implements OnInit {
     this.sqlService.selectBySql(sql).subscribe(
       res => {
         //补充记录的位置信息
+        console.log(res)
         for (let i = 0; i < this.records.length; i++) {
           let a = this.records[i];
           for (let j = 0; j < res.length; j++) {
             let b = res[j];
-            if (a.lac == b.lac && a.ci == b.ci) {
+            if (a.lac === b.lac && a.ci === b.ci) {
               a.lat = b.lat;
               a.lng = b.lng;
               a.addr = b.addr;
@@ -344,6 +345,7 @@ export class MenuComponent implements OnInit {
     })
 
     sql = sql.substr(0, sql.length - 6);
+    // console.log(sql)
     return sql;
   }
 
@@ -406,16 +408,16 @@ export class MenuComponent implements OnInit {
       this.router.navigateByUrl('/')
     }
     //如果点击的是当前表，不做反应
-    if (!item || item == Model.currentTable) {
+    if (!item || item == CommonData.currentTable) {
       return;
     }
     //禁用菜单，直到得到数据
     this.isMenuDisable = true;
     //记录当前操作的话单和运营商
-    Model.currentTable = item;
-    let yysMap = {'移动':0,'联通':1,'电信':11}
+    CommonData.currentTable = item;
+    let yysMap = { '移动': 0, '联通': 1, '电信': 11 }
     let yys = item.split('_')[0];
-    Model.CURRENT_MNC = yysMap[yys];
+    CommonData.CURRENT_MNC = yysMap[yys];
 
     this.dbService.getRecords(item)
       .done(res => {
@@ -428,17 +430,16 @@ export class MenuComponent implements OnInit {
 
     //切换话单要1、清楚表格数据2、清楚地图marker，3、关闭表格
     this.dispatchClearEvent();
-    Model.commonContactsList = null;
   }
 
   private setAllRecords(res) {
     if (res.length > 0) {
-      Model.allRecords = [];
-      Model.allRecordsMap = new Map();
+      CommonData.allRecords = [];
+      CommonData.allRecordsMap = new Map();
       for (let i = 0; i < res.length; i++) {
         const r = res[i];
-        Model.allRecords.push(r);
-        Model.allRecordsMap.set(r.id, r);
+        CommonData.allRecords.push(r);
+        CommonData.allRecordsMap.set(r.id, r);
       }
     }
   }
@@ -483,33 +484,29 @@ export class MenuComponent implements OnInit {
   private removeFilters() {
     for (let i = 1; i < 6; i++) {
       //localStorage中键的保存方式
-      let key = Model.currentTable + '_f' + i;;
+      let key = CommonData.currentTable + '_f' + i;;
       localStorage.removeItem(key);
     }
   }
 
   //显示通话详单
   onShowRecords(tableName) {
-    Model.isShowBtnBack = false;
-    // console.log(Model.allRecords);
-    EventBus.dispatch(EventType.SHOW_RECORDS, Model.allRecords);
+    EventBus.dispatch(EventType.SHOW_RECORDS, CommonData.allRecords);
   }
 
   //获取话单的次数统计
   onCountRecord(tableName) {
-    Model.isShowBtnBack = true;
     this.dbService.getRecordCountInfo(tableName)
-      .done(res => { EventBus.dispatch(EventType.SHOW_RECORD_COUNT, res); Model.recordsCountList = res; })
+      .done(res => { EventBus.dispatch(EventType.SHOW_RECORD_COUNT, res); })
       .fail((tx, err) => { throw new Error(err.message) })
   }
 
   //夜间通话记录
   onNightRecord() {
-    Model.isShowBtnBack = false;
     let nightRecords = [];
-    let records = Model.allRecords;
+    let records = CommonData.allRecords;
     records.forEach(item => {
-      const startTime = moment(item[Model.START_TIME]);
+      const startTime = moment(item[Field.START_TIME]);
       const hour = startTime.get('hour');
       if (hour <= 5 || hour >= 22) {
         nightRecords.push(item)
@@ -534,20 +531,46 @@ export class MenuComponent implements OnInit {
 
   //重新加载数据库
   private onRefreshTable(e) {
-    this.dbService.getRecords(Model.currentTable)
+    this.dbService.getRecords(CommonData.currentTable)
       .done(res => {
-        Model.allRecords = res;
+        CommonData.allRecords = res;
         // EventBus.dispatch(EventType.SHOW_RECORDS, Model.ALL_RECORDS);
       })
   }
 
+  onMoveRecords() {
+    console.log('move record')
+    let records = CommonData.allRecords;
+    records.sort((a, b) => {
+      return a.startTime - b.startTime
+    })
+    let prevRecord;
+    let arr = []
+    let groupIndex = 0;
+    records.forEach(item => {
+      if (prevRecord) {
+        let duration = (moment(prevRecord.startTime).diff(moment(item.startTime))) / 1000 / 60;
+        if (duration < 10 && prevRecord.lac != '' && item.lac != '' &&
+          (prevRecord.lac != item.lac || prevRecord.ci != item.ci)) {
+          if (arr.indexOf(prevRecord) == -1) {
+            arr.push(prevRecord);
+            groupIndex++;
+            prevRecord.groupIndex = groupIndex;
+          }
+          item.groupIndex = groupIndex;
+          arr.push(item)
+        }
+      }
+      prevRecord = item;
+    })
+    console.log(arr);
+    EventBus.dispatch(EventType.SHOW_RECORDS, arr);
+  }
+
   //获取多话单共同联系人
   onGetCommonContacts() {
-    Model.allRecords = null;
-    Model.currentTable = null;
-    Model.stationsCountList = null;
-    Model.recordsCountList = null;
-    Model.isShowBtnBack = true;
+    CommonData.allRecords = null;
+    CommonData.currentTable = null;
     this.dispatchClearEvent()
 
     //关闭打开的话单
@@ -556,7 +579,6 @@ export class MenuComponent implements OnInit {
     this.accordion.multi = false;
 
     EventBus.dispatch(EventType.SHOW_COMMON_CONTACTS_UI);
-    // Model.record_count_info = null;
   }
 
   showNumberDialog() {

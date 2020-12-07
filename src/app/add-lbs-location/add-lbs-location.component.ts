@@ -2,11 +2,12 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as EventBus from 'eventbusjs';
 import { EventType } from '../models/event-type';
-import { Model } from '../models/Model';
+import { CommonData } from '../models/commonData';
 import { DbService } from '../services/db.service';
 import * as toastr from 'toastr';
 import * as gcoord from 'gcoord'
 import { SqlService } from '../services/sql.service';
+import { Record } from '../models/record';
 
 @Component({
   selector: 'app-add-lbs-location',
@@ -29,7 +30,7 @@ export class AddLbsLocationComponent implements OnInit {
 
   onSubmit() {
     //修改本地
-    this.dbService.updateLbsLocation(Model.currentTable, this.data.lac, this.data.ci, this.data.lat, this.data.lng,
+    this.dbService.updateLbsLocation(CommonData.currentTable, this.data.lac, this.data.ci, this.data.lat, this.data.lng,
       (tx, res) => {
         const rowsAffected = res.rowsAffected;
         if (rowsAffected === 0) {
@@ -38,18 +39,21 @@ export class AddLbsLocationComponent implements OnInit {
           toastr.info(`添加经纬度成功，共修改${rowsAffected}条记录`);
           //视图刷新
           //1 更新Model存储所有 
-          let allRecords = Model.allRecords;
-          let recordsMap = Model.allRecordsMap;
+          let allRecords = CommonData.allRecords;
+          let recordsMap = CommonData.allRecordsMap;
           let len = allRecords.length;
           recordsMap.clear();
+          let records = []
           for (let i = 0; i < len; i++) {
             let r = allRecords[i];
             if (r.lac == this.data.lac && r.ci == this.data.ci) {
               r.lat = this.data.lat;
               r.lng = this.data.lng;
+              records.push(r)
             }
-            recordsMap.set(r.id, r)
+            recordsMap.set(r.id, r);
           }
+          EventBus.dispatch(EventType.SHOW_STATIONS,Record.toStations(records)) 
           //2 更新视图
           let gridData = this.data.gridData;
           for (let i = 0; i < gridData.length; i++) {
@@ -71,7 +75,7 @@ export class AddLbsLocationComponent implements OnInit {
       gcoord.BD09,               // 当前坐标系
       gcoord.WGS84                 // 目标坐标系
     );
-    this.sqlService.insertLbsLocation(Model.CURRENT_MNC, this.data.lac, this.data.ci, this.data.lat, this.data.lng, result[1], result[0]).subscribe(
+    this.sqlService.insertLbsLocation(CommonData.CURRENT_MNC, this.data.lac, this.data.ci, this.data.lat, this.data.lng, result[1], result[0]).subscribe(
       res=>{
         console.log(res)
       }
