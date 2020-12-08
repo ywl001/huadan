@@ -10,6 +10,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { AddLbsLocationComponent } from '../add-lbs-location/add-lbs-location.component';
 import { Record } from '../models/record';
 import { CursorType } from '../models/cursor-type';
+import { GridState } from '../models/grid-state';
 
 declare var BMap;
 declare var BMapLib;
@@ -223,7 +224,7 @@ export class MapComponent implements OnInit {
     }
     this.data = Record.toStations(records)
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
-    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, records);
+    EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:records,state:GridState.RECORD_COUNT});
   }
 
   //检测绘制范围内是否有覆盖物
@@ -377,7 +378,7 @@ export class MapComponent implements OnInit {
     this.setFocusMarker(e.target)
     let station: Station = e.target.attributes;
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
-    EventBus.dispatch(EventType.SHOW_STATIONS_RECORDS, station.records);
+    EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:station.records,state:GridState.RECORD_COUNT});
   }
 
   //鼠标overMark

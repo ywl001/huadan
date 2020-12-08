@@ -15,6 +15,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { Record } from '../models/record';
 import { NumberComponent } from '../number/number.component';
 import { Field } from '../models/field';
+import { GridState } from '../models/grid-state';
 
 
 declare var alertify;
@@ -418,7 +419,7 @@ export class MenuComponent implements OnInit {
     let yysMap = { '移动': 0, '联通': 1, '电信': 11 }
     let yys = item.split('_')[0];
     CommonData.CURRENT_MNC = yysMap[yys];
-
+    
     this.dbService.getRecords(item)
       .done(res => {
         this.setAllRecords(res);
@@ -491,13 +492,13 @@ export class MenuComponent implements OnInit {
 
   //显示通话详单
   onShowRecords(tableName) {
-    EventBus.dispatch(EventType.SHOW_RECORDS, CommonData.allRecords);
+    EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:CommonData.allRecords,state:GridState.RECORDS});
   }
 
   //获取话单的次数统计
   onCountRecord(tableName) {
     this.dbService.getRecordCountInfo(tableName)
-      .done(res => { EventBus.dispatch(EventType.SHOW_RECORD_COUNT, res); })
+      .done(res => { EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:res,state:GridState.RECORD_COUNT}); })
       .fail((tx, err) => { throw new Error(err.message) })
   }
 
@@ -513,7 +514,7 @@ export class MenuComponent implements OnInit {
       }
     })
     if (nightRecords.length > 0)
-      EventBus.dispatch(EventType.SHOW_RECORDS, nightRecords);
+      EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:nightRecords,state:GridState.RECORDS});
     else
       toastr.error('没有夜间通话记录,请检查起始时间');
   }
@@ -524,7 +525,7 @@ export class MenuComponent implements OnInit {
       .done(res => {
         let stations = Record.toStations(res);
         EventBus.dispatch(EventType.SHOW_STATIONS, stations);
-        EventBus.dispatch(EventType.SHOW_RECORDS, res);
+        EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:res,state:GridState.RECORDS});
       })
       .fail((tx, err) => { throw new Error(err.message) });
   }
@@ -536,35 +537,6 @@ export class MenuComponent implements OnInit {
         CommonData.allRecords = res;
         // EventBus.dispatch(EventType.SHOW_RECORDS, Model.ALL_RECORDS);
       })
-  }
-
-  onMoveRecords() {
-    console.log('move record')
-    let records = CommonData.allRecords;
-    records.sort((a, b) => {
-      return a.startTime - b.startTime
-    })
-    let prevRecord;
-    let arr = []
-    let groupIndex = 0;
-    records.forEach(item => {
-      if (prevRecord) {
-        let duration = (moment(prevRecord.startTime).diff(moment(item.startTime))) / 1000 / 60;
-        if (duration < 10 && prevRecord.lac != '' && item.lac != '' &&
-          (prevRecord.lac != item.lac || prevRecord.ci != item.ci)) {
-          if (arr.indexOf(prevRecord) == -1) {
-            arr.push(prevRecord);
-            groupIndex++;
-            prevRecord.groupIndex = groupIndex;
-          }
-          item.groupIndex = groupIndex;
-          arr.push(item)
-        }
-      }
-      prevRecord = item;
-    })
-    console.log(arr);
-    EventBus.dispatch(EventType.SHOW_RECORDS, arr);
   }
 
   //获取多话单共同联系人

@@ -6,7 +6,7 @@
 
 #btnLocation {
   position: absolute;
-  right: 10px;
+  right: 15px;
   bottom: 10px;
   opacity: 0;
 }
@@ -21,12 +21,7 @@
   position: absolute;
   right: 25px;
   bottom: 50px;
-  opacity: 1;
   /* background-color: aquamarine */
-}
-
-.btnFilterGroup:hover {
-  opacity: 1;
 }
 
 .btnFilter {

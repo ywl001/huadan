@@ -8,6 +8,7 @@ import * as toastr from 'toastr';
 import * as gcoord from 'gcoord'
 import { SqlService } from '../services/sql.service';
 import { Record } from '../models/record';
+import { GridState } from '../models/grid-state';
 
 @Component({
   selector: 'app-add-lbs-location',
@@ -63,7 +64,7 @@ export class AddLbsLocationComponent implements OnInit {
               r.lng = this.data.lng;
             }
           }
-          EventBus.dispatch(EventType.SHOW_RECORDS, gridData);
+          EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:gridData,state:GridState.RECORD_COUNT});
         }
         (tx, err) => { console.log(err.message) }
       },

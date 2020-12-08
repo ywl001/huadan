@@ -5,6 +5,7 @@ import * as toastr from 'toastr'
 import * as EventBus from 'eventbusjs'
 import { DbService } from '../services/db.service';
 import { EventType } from '../models/event-type';
+import { GridState } from '../models/grid-state';
 
 @Component({
   selector: 'app-common-contacts',
@@ -37,7 +38,7 @@ export class CommonContactsComponent {
       let allCombinations: any[] = this.getArrayCombination(tables);
       // console.log(allCombinations)
       this.dbService.getAllCommonContacts(allCombinations)
-        .done(res => { EventBus.dispatch(EventType.SHOW_COMMON_CONTACTS, res); });
+        .done(res => { EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:res,state:GridState.COMMON_CONTACTS}); });
     }
     TweenMax.to(".commonContacts", 0.5, { left: '-310px' });
   }

@@ -15,19 +15,12 @@ export class EventType {
 
     public static IS_CAN_TOGGLE_MIDDLE: string = "isToggleMiddle";
 
-    /** 显示对端号码统计信息 带表格数据参数*/
-    public static SHOW_RECORD_COUNT: string = "showRecordCount";
-
-    //显示通话记录
-    public static SHOW_RECORDS: string = "showRecords";
-    //显示共同联系人
-    public static SHOW_COMMON_CONTACTS: string = "showCommonContacts";
+    //表格显示数据
+    public static SHOW_GRID_DATA: string = "showGridData";
 
     /**库中搜索号码 带号码参数 */
     public static SEARCH_NUMBER: string = "searchNumber";
 
-    public static SHOW_STATIONS_RECORDS: string = "showStationRecords";
-    
     public static REFRESH_TABLE: string = "refreshTable";
     public static CLEAR_GRID_DATA: string = 'clearGridData';
     public static CLEAR_MARKER: string = "clearMarker";
