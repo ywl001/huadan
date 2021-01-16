@@ -378,7 +378,7 @@ export class MapComponent implements OnInit {
     this.setFocusMarker(e.target)
     let station: Station = e.target.attributes;
     EventBus.dispatch(EventType.TOGGLE_MIDDLE, true)
-    EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:station.records,state:GridState.RECORD_COUNT});
+    EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:station.records,state:GridState.RECORDS});
   }
 
   //鼠标overMark

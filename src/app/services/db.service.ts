@@ -107,9 +107,10 @@ export class DbService {
    */
   getTopTenStations(tableName) {
     const sql =
-      `select a.* from "${tableName}" a, 
+      `select a.*,b.count from "${tableName}" a, 
     (select lac,ci,count(*) count from "${tableName}" where lac!='' and ci!='' group by lac,ci order by count desc limit 10) b 
-    on (a.lac == b.lac and a.ci = b.ci) `;
+    on (a.lac == b.lac and a.ci = b.ci) order by b.count desc`;
+    console.log(sql)
     return this.db.query(sql);
   }
 

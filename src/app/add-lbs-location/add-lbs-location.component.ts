@@ -64,7 +64,7 @@ export class AddLbsLocationComponent implements OnInit {
               r.lng = this.data.lng;
             }
           }
-          EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:gridData,state:GridState.RECORD_COUNT});
+          EventBus.dispatch(EventType.SHOW_GRID_DATA, {data:gridData,state:GridState.RECORDS});
         }
         (tx, err) => { console.log(err.message) }
       },
